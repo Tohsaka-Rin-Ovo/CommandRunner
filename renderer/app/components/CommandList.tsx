@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Plus, GripHorizontal, ChevronDown, ChevronRight, Play, Trash2, Edit, RotateCcw, CheckCircle, XCircle, AlertCircle, MinusCircle, Bookmark } from "lucide-react";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -132,7 +133,12 @@ export default function CommandList() {
   };
 
   const handleAddCommand = async () => {
-    if (newCommand.content.trim()) {
+    if (!newCommand.content || !newCommand.content.trim()) {
+      toast.error("命令内容不能为空");
+      return;
+    }
+
+    try {
       const command: CommandType = {
         id: Date.now().toString(),
         content: newCommand.content,
@@ -141,14 +147,27 @@ export default function CommandList() {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
+
       await saveCommand(command);
+
+      toast.success("命令添加成功");
+
       setNewCommand({ content: "", description: "", details: "" });
       setShowAddDialog(false);
+    } catch (error) {
+      toast.error("添加命令失败：" + (error as Error).message);
     }
   };
 
   const handleDeleteCommand = async (id: string) => {
-    await deleteCommand(id);
+    if (window.confirm("确定要删除这个命令吗？")) {
+      try {
+        await deleteCommand(id);
+        toast.success("命令删除成功");
+      } catch (error) {
+        toast.error("删除命令失败：" + (error as Error).message);
+      }
+    }
   };
 
   const handleEditCommand = (command: Command) => {
@@ -157,10 +176,22 @@ export default function CommandList() {
   };
 
   const handleSaveEdit = async () => {
-    if (editingCommand) {
+    if (!editingCommand) return;
+
+    if (!editingCommand.content || !editingCommand.content.trim()) {
+      toast.error("命令内容不能为空");
+      return;
+    }
+
+    try {
       await updateCommand(editingCommand.id, editingCommand);
+
+      toast.success("命令保存成功");
+
       setEditingCommand(null);
       setShowEditDialog(false);
+    } catch (error) {
+      toast.error("保存命令失败：" + (error as Error).message);
     }
   };
 

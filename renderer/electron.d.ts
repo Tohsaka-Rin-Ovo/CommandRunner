@@ -10,7 +10,7 @@ export interface ElectronAPI {
 
   // Presets
   getPresets: () => Promise<Preset[]>
-  savePreset: (preset: Partial<Preset> & { id?: string }) => Promise<boolean>
+  savePreset: (preset: Preset) => Promise<boolean>
   updatePreset: (id: string, preset: Partial<Preset>) => Promise<boolean>
   deletePreset: (id: string) => Promise<boolean>
 

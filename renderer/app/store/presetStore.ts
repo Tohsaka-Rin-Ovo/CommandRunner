@@ -6,9 +6,9 @@ interface PresetStore {
   loading: boolean
   expandedPreset: string | null
   fetchPresets: () => Promise<void>
-  savePreset: (preset: Preset) => Promise<void>
-  updatePreset: (id: string, updates: Partial<Preset>) => Promise<void>
-  deletePreset: (id: string) => Promise<void>
+  savePreset: (preset: Preset) => Promise<boolean>
+  updatePreset: (id: string, updates: Partial<Preset>) => Promise<boolean>
+  deletePreset: (id: string) => Promise<boolean>
   setExpandedPreset: (presetId: string | null) => void
 }
 
@@ -29,18 +29,34 @@ export const usePresetStore = create<PresetStore>((set, get) => ({
   },
 
   savePreset: async (preset: Preset) => {
-    await window.electronAPI.savePreset(preset)
-    await get().fetchPresets()
+    const result = await window.electronAPI.savePreset(preset);
+    if (result) {
+      await get().fetchPresets();
+    }
+    return result;
   },
 
   updatePreset: async (id: string, updates: Partial<Preset>) => {
-    await window.electronAPI.updatePreset(id, updates)
-    await get().fetchPresets()
+    console.log('[presetStore] updatePreset called:', id, updates);
+    const result = await window.electronAPI.updatePreset(id, updates);
+    console.log('[presetStore] API 返回结果:', result);
+
+    if (!result) {
+      console.error('[presetStore] 更新预设失败：API 返回 false');
+      return false;
+    }
+
+    await get().fetchPresets();
+    console.log('[presetStore] 刷新预设列表完成');
+    return true;
   },
 
   deletePreset: async (id: string) => {
-    await window.electronAPI.deletePreset(id)
-    await get().fetchPresets()
+    const result = await window.electronAPI.deletePreset(id);
+    if (result) {
+      await get().fetchPresets();
+    }
+    return result;
   },
 
   setExpandedPreset: (presetId: string | null) => {

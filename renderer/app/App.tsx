@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { RouterProvider } from 'react-router'
 import { router } from './routes'
+import { Toaster } from 'sonner'
 import { useCommandStore } from './store/commandStore'
 import { usePresetStore } from './store/presetStore'
 import { useHistoryStore } from './store/historyStore'
@@ -70,7 +71,12 @@ function App() {
     }
   }, [updateCommandOutput, completeCommand, updatePresetProgress, getCommand])
 
-  return <RouterProvider router={router} />
+  return (
+    <>
+      <RouterProvider router={router} />
+      <Toaster />
+    </>
+  )
 }
 
 export default App

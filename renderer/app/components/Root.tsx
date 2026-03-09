@@ -1,22 +1,12 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { List, Settings, History, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { List, Settings, History, ChevronRight, Plus } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from "./ui/context-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "./ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -26,31 +16,15 @@ export default function Root() {
   const location = useLocation();
   const navigate = useNavigate();
   const presets = usePresetStore((state) => state.presets);
-  const deletePreset = usePresetStore((state) => state.deletePreset);
   const [expandedPreset, setExpandedPreset] = useState(false);
   const [showAddPresetDialog, setShowAddPresetDialog] = useState(false);
   const [newPresetName, setNewPresetName] = useState("");
-  const [showDeletePresetDialog, setShowDeletePresetDialog] = useState(false);
-  const [presetToDelete, setPresetToDelete] = useState<string | null>(null);
 
   const handleAddPreset = () => {
     if (newPresetName.trim()) {
       setShowAddPresetDialog(false);
       navigate("/presets", { state: { newPresetName: newPresetName.trim() } });
       setNewPresetName("");
-    }
-  };
-
-  const handleDeletePreset = (id: string) => {
-    setPresetToDelete(id);
-    setShowDeletePresetDialog(true);
-  };
-
-  const confirmDeletePreset = async () => {
-    if (presetToDelete) {
-      await deletePreset(presetToDelete);
-      setShowDeletePresetDialog(false);
-      setPresetToDelete(null);
     }
   };
 
@@ -112,22 +86,13 @@ export default function Root() {
             {expandedPreset && presets.length > 0 && (
               <div className="ml-8 mt-1 space-y-1">
                 {presets.map((preset) => (
-                  <ContextMenu key={preset.id}>
-                    <ContextMenuTrigger asChild>
-                      <Link
-                        to="/presets"
-                        className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
-                      >
-                        {preset.name}
-                      </Link>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent>
-                      <ContextMenuItem onClick={() => handleDeletePreset(preset.id)} className="text-red-600">
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        删除预设
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
+                  <Link
+                    key={preset.id}
+                    to="/presets"
+                    className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                  >
+                    {preset.name}
+                  </Link>
                 ))}
               </div>
             )}
@@ -174,23 +139,6 @@ export default function Root() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={showDeletePresetDialog} onOpenChange={setShowDeletePresetDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确定要删除这个预设吗？</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作无法撤销。这将永久删除该预设及其包含的所有命令配置。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPresetToDelete(null)}>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeletePreset} className="bg-red-600 hover:bg-red-700 text-white">
-              删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

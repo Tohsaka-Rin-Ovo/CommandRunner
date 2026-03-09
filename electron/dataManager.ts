@@ -208,14 +208,29 @@ export function savePreset(preset: any): boolean {
 }
 
 export function updatePreset(id: string, updates: any): boolean {
+  console.log('[DataManager] updatePreset called:', id, updates);
+
   const presets = getPresets()
+  console.log('[DataManager] 当前预设列表:', presets);
+
   const index = presets.findIndex(p => p.id === id)
-  
+  console.log('[DataManager] 预设索引:', index);
+
   if (index >= 0) {
-    presets[index] = { ...presets[index], ...updates, updatedAt: Date.now() }
-    return writeFile('presets.json', presets)
+    const oldPreset = presets[index];
+    const newPreset = { ...presets[index], ...updates, updatedAt: Date.now() }
+    presets[index] = newPreset
+
+    console.log('[DataManager] 更新前:', oldPreset);
+    console.log('[DataManager] 更新后:', newPreset);
+
+    const writeResult = writeFile('presets.json', presets)
+    console.log('[DataManager] 写入结果:', writeResult);
+
+    return writeResult
   }
-  
+
+  console.error('[DataManager] 预设不存在:', id);
   return false
 }
 

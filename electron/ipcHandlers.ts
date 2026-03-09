@@ -36,7 +36,12 @@ export function setupIPCHandlers() {
   })
 
   ipcMain.handle('update-preset', async (_event, id, preset) => {
-    return DataManager.updatePreset(id, preset)
+    console.log('[IPC] update-preset called:', id, preset);
+
+    const result = DataManager.updatePreset(id, preset);
+    console.log('[IPC] update-preset result:', result);
+
+    return result;
   })
 
   ipcMain.handle('delete-preset', async (_event, id) => {
