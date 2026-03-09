@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router";
 import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "./ui/button";
 import {
   ContextMenu,
@@ -44,7 +43,6 @@ export default function CommandPresets() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingPreset, setEditingPreset] = useState<Preset | null>(null);
   const [expandedPresets, setExpandedPresets] = useState<Set<string>>(new Set());
-  const [isSaving, setIsSaving] = useState(false);
   const [newPreset, setNewPreset] = useState<Omit<Preset, "id" | "createdAt" | "updatedAt">>({
     name: "",
     description: "",
@@ -84,74 +82,23 @@ export default function CommandPresets() {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-
-      try {
-        await savePreset(preset);
-        setNewPreset({ name: "", description: "", commands: [] });
-        setShowAddDialog(false);
-
-        setTimeout(() => {
-          toast.success("预设添加成功");
-        }, 100);
-      } catch (error) {
-        toast.error("添加预设失败：" + (error as Error).message);
-      }
-    } else {
-      toast.error("预设名称不能为空");
+      await savePreset(preset);
+      setNewPreset({ name: "", description: "", commands: [] });
+      setShowAddDialog(false);
     }
   };
 
   const handleEditPreset = async () => {
-    if (!editingPreset) return;
-
-    if (!editingPreset.name || !editingPreset.name.trim()) {
-      toast.error("预设名称不能为空");
-      return;
-    }
-
-    console.log("[CommandPresets] 开始保存预设:", editingPreset.id);
-    console.log("[CommandPresets] 保存前的数据:", JSON.stringify(editingPreset, null, 2));
-    console.log("[CommandPresets] 命令数量:", editingPreset.commands.length);
-
-    setIsSaving(true);
-
-    try {
-      const updatedPreset = {
-        ...editingPreset,
-        updatedAt: Date.now()
-      };
-
-      console.log("[CommandPresets] 准备保存的数据:", JSON.stringify(updatedPreset, null, 2));
-
-      const success = await updatePreset(editingPreset.id, updatedPreset);
-
-      if (success) {
-        console.log("[CommandPresets] 保存成功");
-
-        toast.success("预设保存成功");
-
-        setEditingPreset(null);
-        setShowEditDialog(false);
-      } else {
-        console.error("[CommandPresets] 保存失败：API 返回 false");
-        toast.error("保存失败，请重试");
-      }
-    } catch (error) {
-      console.error("[CommandPresets] 保存异常:", error);
-      toast.error("保存失败：" + (error as Error).message);
-    } finally {
-      setIsSaving(false);
+    if (editingPreset) {
+      await updatePreset(editingPreset.id, editingPreset);
+      setEditingPreset(null);
+      setShowEditDialog(false);
     }
   };
 
   const handleDeletePreset = async (id: string) => {
     if (window.confirm("确定要删除这个预设吗？")) {
-      try {
-        await deletePreset(id);
-        toast.success("预设删除成功");
-      } catch (error) {
-        toast.error("删除预设失败：" + (error as Error).message);
-      }
+      await deletePreset(id);
     }
   };
 
@@ -226,21 +173,21 @@ export default function CommandPresets() {
                             onContextMenu={(e) => e.stopPropagation()}
                           >
                             <div className="p-5">
-                              <div className="flex items-start justify-between gap-4">
+                              <div className="flex items-start justify-between">
                                 <div
-                                  className="flex items-start gap-3 flex-1 cursor-pointer min-w-0"
+                                  className="flex items-start gap-3 flex-1 cursor-pointer"
                                   onClick={() => toggleExpand(preset.id)}
                                 >
-                                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                                     <Icon className="w-5 h-5 text-blue-600" />
                                   </div>
-                                  <div className="flex-1 min-w-0">
+                                  <div className="flex-1">
                                     <div className="flex items-center gap-2">
-                                      <h3 className="font-semibold text-gray-900 truncate">{preset.name}</h3>
+                                      <h3 className="font-semibold text-gray-900">{preset.name}</h3>
                                       {getStatusIcon(execution?.completed ? "completed" : execution?.stopRequested ? "stopped" : undefined)}
                                     </div>
                                     {preset.description && (
-                                      <p className="text-sm text-gray-600 mt-1 truncate">{preset.description}</p>
+                                      <p className="text-sm text-gray-600 mt-1">{preset.description}</p>
                                     )}
                                     <div className="flex items-center gap-2 mt-2">
                                       <Badge variant="secondary">
@@ -253,19 +200,14 @@ export default function CommandPresets() {
                                       )}
                                     </div>
                                   </div>
+                                  {isExpanded ? (
+                                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                                  ) : (
+                                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                                  )}
                                 </div>
 
-                                <div className="flex items-center gap-1 shrink-0">
-                                  <div 
-                                    className="cursor-pointer p-1 rounded hover:bg-gray-100 mr-1"
-                                    onClick={() => toggleExpand(preset.id)}
-                                  >
-                                    {isExpanded ? (
-                                      <ChevronDown className="w-5 h-5 text-gray-400" />
-                                    ) : (
-                                      <ChevronRight className="w-5 h-5 text-gray-400" />
-                                    )}
-                                  </div>
+                                <div className="flex gap-1 ml-2">
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -481,78 +423,29 @@ export default function CommandPresets() {
           </DialogHeader>
           {editingPreset && (
             <div className="space-y-6 py-4">
-               <div className="space-y-2">
-                 <Label htmlFor="edit-name">预设名称</Label>
-                 <Input
-                   id="edit-name"
-                   value={editingPreset.name}
-                   onChange={(e) => setEditingPreset(prev => ({ ...prev, name: e.target.value }))}
-                 />
-               </div>
-               <div className="space-y-2">
-                 <Label htmlFor="edit-description">描述</Label>
-                 <Textarea
-                   id="edit-description"
-                   value={editingPreset.description || ""}
-                   onChange={(e) => setEditingPreset(prev => ({ ...prev, description: e.target.value }))}
-                 />
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">预设名称</Label>
+                <Input
+                  id="edit-name"
+                  value={editingPreset.name}
+                  onChange={(e) => setEditingPreset({ ...editingPreset, name: e.target.value })}
+                />
               </div>
-               <div className="space-y-2">
-                 <Label>选择命令</Label>
-                 <div className="mt-2 space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
-                   {commands.map((cmd) => (
-                     <label key={cmd.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                       <input
-                         type="checkbox"
-                         checked={editingPreset.commands.some((c) => c.id === cmd.id)}
-                         onChange={(e) => {
-                           console.log("[CommandPresets] 命令复选框变化:", {
-                             checked: e.target.checked,
-                             cmdId: cmd.id,
-                             cmdContent: cmd.content,
-                             currentCommands: editingPreset.commands,
-                           });
-
-                           setEditingPreset(prev => {
-                             if (e.target.checked) {
-                               const newCommands = [
-                                 ...prev.commands,
-                                 { id: cmd.id, content: cmd.content, order: prev.commands.length },
-                               ];
-                               console.log("[CommandPresets] 添加命令后:", newCommands);
-                               return {
-                                 ...prev,
-                                 commands: newCommands,
-                               };
-                             } else {
-                               const newCommands = prev.commands.filter((c) => c.id !== cmd.id);
-                               console.log("[CommandPresets] 删除命令后:", newCommands);
-                               return {
-                                 ...prev,
-                                 commands: newCommands,
-                               };
-                             }
-                           });
-                         }}
-                         className="mt-1"
-                       />
-                       <div className="flex-1">
-                         <code className="text-sm font-mono">{cmd.content}</code>
-                         {cmd.description && <p className="text-xs text-gray-500 mt-1">{cmd.description}</p>}
-                       </div>
-                     </label>
-                   ))}
-                 </div>
-               </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">描述</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editingPreset.description || ""}
+                  onChange={(e) => setEditingPreset({ ...editingPreset, description: e.target.value })}
+                />
+              </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={isSaving}>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               取消
             </Button>
-            <Button onClick={handleEditPreset} disabled={isSaving}>
-              {isSaving ? "保存中..." : "保存"}
-            </Button>
+            <Button onClick={handleEditPreset}>保存</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

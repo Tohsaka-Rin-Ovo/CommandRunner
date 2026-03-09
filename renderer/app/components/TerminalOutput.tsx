@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react'
-import { Copy, Save, RotateCcw, X, ExternalLink } from 'lucide-react'
+import { Copy, Save, Trash2, X, ExternalLink } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from './ui/button'
 
 interface TerminalOutputProps {
@@ -68,6 +69,10 @@ export function TerminalOutput({
   }
 
   const handleClear = () => {
+    if (status === 'running') {
+      toast.error('执行命令中，请先停止再清空输出')
+      return
+    }
     onClear()
   }
 
@@ -159,7 +164,7 @@ export function TerminalOutput({
             onClick={handleClear}
             title="清空输出"
           >
-            <RotateCcw className="w-4 h-4" />
+            <Trash2 className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"

@@ -137,12 +137,7 @@ export const useExecutionStore = create<ExecutionStore>((set, _get) => ({
   clearCommandOutput: (id: string) => {
     set((state) => {
       const newCommands = new Map(state.activeCommands)
-      const execution = newCommands.get(id)
-      if (execution) {
-        execution.output = ''
-        execution.outputLines = []
-        execution.displayLines = []
-      }
+      newCommands.delete(id)
       return { activeCommands: newCommands }
     })
   },

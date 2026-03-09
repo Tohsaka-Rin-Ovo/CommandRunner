@@ -160,6 +160,15 @@ export default function CommandList() {
   };
 
   const handleDeleteCommand = async (id: string) => {
+    // 检查命令是否正在执行
+    const executionId = getExecutionId(id);
+    const execution = activeCommands.get(executionId);
+    
+    if (execution && execution.status === 'running') {
+      toast.error("执行命令中，请先停止再删除");
+      return;
+    }
+
     if (window.confirm("确定要删除这个命令吗？")) {
       try {
         await deleteCommand(id);
