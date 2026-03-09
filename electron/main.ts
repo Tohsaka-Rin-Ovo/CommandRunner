@@ -1,0 +1,74 @@
+import { app, BrowserWindow, Menu } from 'electron'
+import path from 'path'
+import { setupIPCHandlers } from './ipcHandlers'
+
+const isDev = process.env.NODE_ENV === 'development'
+
+let mainWindow: BrowserWindow | null = null
+
+function createWindow() {
+  // 移除默认的应用菜单栏
+  Menu.setApplicationMenu(null)
+
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1200,
+    minHeight: 700,
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      nodeIntegrationInWorker: false,
+      webSecurity: true,
+      sandbox: true,
+    },
+    title: 'CommandRunner',
+    backgroundColor: '#f9fafb',
+  })
+
+  if (isDev) {
+    const port = process.env.ELECTRON_RENDERER_URL ? new URL(process.env.ELECTRON_RENDERER_URL).port : '5173'
+    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL || `http://localhost:${port}/`)
+    // 移除自动打开开发者工具的代码
+    // mainWindow.webContents.openDevTools()
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
+  }
+
+  // 添加快捷键切换开发者工具 (F12 或 Ctrl+Shift+I)
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (
+      (input.control && input.shift && input.key.toLowerCase() === 'i') ||
+      input.key === 'F12'
+    ) {
+      if (input.type === 'keyDown') {
+        mainWindow?.webContents.toggleDevTools()
+      }
+      event.preventDefault()
+    }
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+}
+
+app.whenReady().then(() => {
+  setupIPCHandlers()
+  createWindow()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+    }
+  })
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})
+
+export { mainWindow }

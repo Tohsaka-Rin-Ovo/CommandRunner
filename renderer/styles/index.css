@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@import "./theme.css";
+@import "./terminal.css";
+@import "tw-animate-css";
+
+@source "../app/**/*.{js,ts,jsx,tsx}";
+
+body {
+  background-color: var(--background, white);
+  color: var(--foreground, black);
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
