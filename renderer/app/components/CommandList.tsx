@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, GripHorizontal, ChevronDown, ChevronRight, Play, Trash2, Edit, RotateCcw, CheckCircle, XCircle, AlertCircle, MinusCircle } from "lucide-react";
+import { Plus, GripHorizontal, ChevronDown, ChevronRight, Play, Trash2, Edit, RotateCcw, CheckCircle, XCircle, AlertCircle, MinusCircle, Bookmark } from "lucide-react";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import {
@@ -25,6 +25,7 @@ import { TerminalOutput } from "./TerminalOutput";
 import { FullOutputDialog } from "./FullOutputDialog";
 import { useCommandStore } from "../store/commandStore";
 import { useExecutionStore } from "../store/executionStore";
+import { usePresetStore } from "../store/presetStore";
 import type { Command as CommandType } from "@shared/types";
 
 interface Command {
@@ -69,10 +70,41 @@ export default function CommandList() {
     description: "",
     details: "",
   });
+  const [showAddToPresetDialog, setShowAddToPresetDialog] = useState(false);
+  const [selectedCommandForPreset, setSelectedCommandForPreset] = useState<Command | null>(null);
+
+  const presets = usePresetStore((state) => state.presets);
+  const fetchPresets = usePresetStore((state) => state.fetchPresets);
+  const updatePreset = usePresetStore((state) => state.updatePreset);
+
+  const handleAddToPreset = (command: Command) => {
+    setSelectedCommandForPreset(command);
+    setShowAddToPresetDialog(true);
+  };
+
+  const handleAddCommandToPreset = async (presetId: string) => {
+    if (selectedCommandForPreset) {
+      const preset = presets.find(p => p.id === presetId);
+      if (preset) {
+        const newPresetCommand = {
+          id: selectedCommandForPreset.id,
+          content: selectedCommandForPreset.content,
+          description: selectedCommandForPreset.description,
+          details: selectedCommandForPreset.details,
+          order: preset.commands.length,
+        };
+        const updatedCommands = [...preset.commands, newPresetCommand];
+        await updatePreset(presetId, { commands: updatedCommands });
+        setShowAddToPresetDialog(false);
+        setSelectedCommandForPreset(null);
+      }
+    }
+  };
 
   useEffect(() => {
     fetchCommands();
-  }, [fetchCommands]);
+    fetchPresets();
+  }, [fetchCommands, fetchPresets]);
 
   const totalPages = Math.ceil(commands.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -140,7 +172,7 @@ export default function CommandList() {
     const command = commands.find(c => c.id === commandId);
     if (command) {
       const executionId = getExecutionId(commandId);
-      const backendExecutionId = await window.electronAPI.executeCommand(command.content, {});
+      await window.electronAPI.executeCommand(command.content, {});
       startCommand(executionId, command.content);
       setExpandedCommands(new Set([commandId]));
     }
@@ -148,7 +180,7 @@ export default function CommandList() {
 
   const handleStop = async (commandId: string) => {
     const executionId = getExecutionId(commandId);
-    const backendExecutionId = await window.electronAPI.stopCommand(executionId);
+    await window.electronAPI.stopCommand(executionId);
     stopCommand(executionId);
   };
 
@@ -156,11 +188,16 @@ export default function CommandList() {
     const executionId = getExecutionId(commandId);
     const execution = activeCommands.get(executionId);
     if (execution) {
+      const status: 'success' | 'failed' | 'stopped' = execution.status === 'running'
+        ? 'stopped'
+        : execution.status === 'success' || execution.status === 'failed' || execution.status === 'stopped'
+        ? execution.status
+        : 'stopped';
       setFullOutputData({
         command: execution.command,
         output: execution.output,
         duration: execution.duration,
-        status: execution.status === 'running' ? 'stopped' : execution.status,
+        status,
       });
       setShowFullOutputDialog(true);
     }
@@ -265,7 +302,12 @@ export default function CommandList() {
           {currentCommands.map((command) => (
             <ContextMenu key={command.id}>
               <ContextMenuTrigger asChild>
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                <div 
+                  className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+                  onContextMenu={(e) => {
+                    console.log('ContextMenuTrigger contextmenu event', e);
+                  }}
+                >
                   <div
                     className="p-4 cursor-pointer"
                     onClick={() => toggleExpand(command.id)}
@@ -382,6 +424,10 @@ export default function CommandList() {
                 <ContextMenuItem onClick={() => handleEditCommand(command)}>
                   <Edit className="w-4 h-4 mr-2" />
                   编辑命令
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleAddToPreset(command)}>
+                  <Bookmark className="w-4 h-4 mr-2" />
+                  添加到预设！！！
                 </ContextMenuItem>
                 <ContextMenuItem
                   onClick={() => handleDeleteCommand(command.id)}
@@ -621,6 +667,58 @@ export default function CommandList() {
         duration={fullOutputData?.duration || 0}
         status={fullOutputData?.status || 'success'}
       />
+
+      {/* 添加到预设对话框 */}
+      <Dialog open={showAddToPresetDialog} onOpenChange={setShowAddToPresetDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>添加到预设</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600 mb-4">
+              选择要将此命令添加到的预设：
+            </p>
+            {selectedCommandForPreset && (
+              <code className="block bg-gray-100 p-3 rounded text-sm font-mono mb-4">
+                {selectedCommandForPreset.content}
+              </code>
+            )}
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {presets.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  暂无预设，请先创建预设
+                </p>
+              ) : (
+                presets.map((preset) => (
+                  <div
+                    key={preset.id}
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
+                    onClick={() => handleAddCommandToPreset(preset.id)}
+                  >
+                    <Bookmark className="w-4 h-4 text-blue-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">
+                        {preset.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {preset.commands.length} 个命令
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddToPresetDialog(false)}
+            >
+              取消
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

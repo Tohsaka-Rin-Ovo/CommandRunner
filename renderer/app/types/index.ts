@@ -1,3 +1,5 @@
+import type { Command, Preset, History, CommandExecution, PresetExecution } from '@shared/types'
+
 // Command Store
 export interface CommandState {
   commands: Command[];

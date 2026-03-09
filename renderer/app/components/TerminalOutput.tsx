@@ -1,7 +1,6 @@
 import { useRef, useEffect } from 'react'
 import { Copy, Save, RotateCcw, X, ExternalLink } from 'lucide-react'
 import { Button } from './ui/button'
-import type { CommandExecution } from '@shared/types'
 
 interface TerminalOutputProps {
   output: string
@@ -16,7 +15,6 @@ interface TerminalOutputProps {
   onClear: () => void
   onClose: () => void
   onToggleFull: () => void
-  onCopySelected?: (text: string) => void
 }
 
 export function TerminalOutput({
@@ -32,7 +30,6 @@ export function TerminalOutput({
   onClear,
   onClose,
   onToggleFull,
-  onCopySelected,
 }: TerminalOutputProps) {
   const outputRef = useRef<HTMLDivElement>(null)
   const lastLineRef = useRef<HTMLDivElement>(null)
@@ -76,17 +73,6 @@ export function TerminalOutput({
 
   const handleClose = () => {
     onClose()
-  }
-
-  const handleSelectCopy = (e: React.ClipboardEvent) => {
-    const selection = window.getSelection()
-    if (selection && selection.toString().trim()) {
-      e.preventDefault()
-      e.clipboardData.setData('text/plain', selection.toString())
-      if (onCopySelected) {
-        onCopySelected(selection.toString())
-      }
-    }
   }
 
   const getStatusText = () => {
@@ -191,7 +177,6 @@ export function TerminalOutput({
       <div
         ref={outputRef}
         className="output-content p-4 font-mono text-sm leading-relaxed text-[#d4d4d4] overflow-y-auto max-h-96"
-        onCopy={onSelectCopy}
         style={{
           fontFamily: "'Fira Code', 'Consolas', 'Courier New', monospace",
           fontSize: '13px',

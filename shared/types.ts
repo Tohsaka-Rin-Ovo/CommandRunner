@@ -19,6 +19,7 @@ export interface Preset {
   id: string;
   name: string;
   description?: string;
+  icon?: string;
   commands: PresetCommand[];
   isDefault?: boolean;
   createdAt: number;

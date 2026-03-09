@@ -48,6 +48,10 @@ export function setupIPCHandlers() {
     return DataManager.getHistory()
   })
 
+  ipcMain.handle('add-history', async (_event, historyItem) => {
+    return DataManager.addHistory(historyItem)
+  })
+
   ipcMain.handle('clear-history', async () => {
     return DataManager.clearHistory()
   })

@@ -1,4 +1,4 @@
-import { Copy, X, Download } from 'lucide-react'
+import { Copy, Download } from 'lucide-react'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { ScrollArea } from './ui/scroll-area'

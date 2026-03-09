@@ -18,7 +18,7 @@ interface ExecutionStore {
   clearCommandOutput: (id: string) => void
 }
 
-export const useExecutionStore = create<ExecutionStore>((set, get) => ({
+export const useExecutionStore = create<ExecutionStore>((set, _get) => ({
   activeCommands: new Map(),
   activePresets: new Map(),
 
@@ -40,7 +40,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     })
   },
 
-  updateCommandOutput: (id: string, line: string, type: 'stdout' | 'stderr') => {
+  updateCommandOutput: (id: string, line: string, _type: 'stdout' | 'stderr') => {
     set((state) => {
       const newCommands = new Map(state.activeCommands)
       const execution = newCommands.get(id)

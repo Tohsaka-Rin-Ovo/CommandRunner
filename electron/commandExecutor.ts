@@ -75,20 +75,23 @@ export class CommandExecutor {
         commandId
       })
 
+      this.execute(commandId, commands[i], workingDir)
+
       await new Promise<void>((resolve) => {
-        this.execute(commandId, commands[i], workingDir)
-        
-        const completeHandler = (_event: any, data: any) => {
-          if (data.commandId === commandId) {
+        const timeout = setTimeout(() => {
+          resolve()
+        }, 120000)
+
+        const checkInterval = setInterval(() => {
+          if (!this.activeCommands.has(commandId) || this.presetStopRequested.get(presetId)) {
+            clearInterval(checkInterval)
+            clearTimeout(timeout)
             resolve()
           }
-        }
-
-        mainWindow?.webContents.on('command-complete', completeHandler)
+        }, 500)
       })
 
-      const lastCommand = await this.getLastCommandResult(commandId)
-      if (!lastCommand?.success) {
+      if (this.presetStopRequested.get(presetId)) {
         break
       }
     }
@@ -114,7 +117,7 @@ export class CommandExecutor {
 
   stopPreset(presetId: string): void {
     this.presetStopRequested.set(presetId, true)
-    
+
     const queue = this.presetQueues.get(presetId)
     if (queue) {
       queue.forEach((_, index) => {
@@ -153,23 +156,6 @@ export class CommandExecutor {
     mainWindow?.webContents.send('preset-progress', {
       presetId,
       ...progress
-    })
-  }
-
-  private async getLastCommandResult(commandId: string): Promise<any> {
-    return new Promise((resolve) => {
-      const listener = (_event: any, data: any) => {
-        if (data.commandId === commandId) {
-          resolve(data)
-        }
-      }
-      
-      mainWindow?.webContents.on('command-complete', listener)
-      
-      setTimeout(() => {
-        mainWindow?.webContents.removeListener('command-complete', listener)
-        resolve(null)
-      }, 1000)
     })
   }
 }
