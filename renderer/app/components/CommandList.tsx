@@ -9,6 +9,16 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "./ui/context-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -71,6 +81,8 @@ export default function CommandList() {
     description: "",
     details: "",
   });
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [commandToDelete, setCommandToDelete] = useState<string | null>(null);
   const [showAddToPresetDialog, setShowAddToPresetDialog] = useState(false);
   const [selectedCommandForPreset, setSelectedCommandForPreset] = useState<Command | null>(null);
 
@@ -159,7 +171,7 @@ export default function CommandList() {
     }
   };
 
-  const handleDeleteCommand = async (id: string) => {
+  const handleDeleteCommand = (id: string) => {
     // 检查命令是否正在执行
     const executionId = getExecutionId(id);
     const execution = activeCommands.get(executionId);
@@ -169,10 +181,17 @@ export default function CommandList() {
       return;
     }
 
-    if (window.confirm("确定要删除这个命令吗？")) {
+    setCommandToDelete(id);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteCommand = async () => {
+    if (commandToDelete) {
       try {
-        await deleteCommand(id);
+        await deleteCommand(commandToDelete);
         toast.success("命令删除成功");
+        setShowDeleteDialog(false);
+        setCommandToDelete(null);
       } catch (error) {
         toast.error("删除命令失败：" + (error as Error).message);
       }
@@ -759,6 +778,24 @@ export default function CommandList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 删除确认对话框 */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定要删除这个命令吗？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作无法撤销。这将永久删除该命令及其相关的执行历史。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCommandToDelete(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteCommand} className="bg-red-600 hover:bg-red-700 text-white">
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

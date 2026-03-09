@@ -18,8 +18,13 @@ export const useCommandStore = create<CommandStore>((set, get) => ({
   fetchCommands: async () => {
     set({ loading: true })
     try {
-      const commands = await window.electronAPI.getCommands()
-      set({ commands, loading: false })
+      if (window.electronAPI) {
+        const commands = await window.electronAPI.getCommands()
+        set({ commands, loading: false })
+      } else {
+        console.error('electronAPI is not defined')
+        set({ loading: false })
+      }
     } catch (error) {
       console.error('Failed to fetch commands:', error)
       set({ loading: false })
@@ -37,8 +42,20 @@ export const useCommandStore = create<CommandStore>((set, get) => ({
   },
 
   deleteCommand: async (id: string) => {
-    await window.electronAPI.deleteCommand(id)
-    await get().fetchCommands()
+    // 乐观更新：立即从本地状态中移除，提高响应速度
+    set((state) => ({
+      commands: state.commands.filter((c) => c.id !== id),
+    }))
+    
+    try {
+      await window.electronAPI.deleteCommand(id)
+      // 可选：如果后端返回最新的列表，可以再次同步
+      // await get().fetchCommands()
+    } catch (error) {
+      console.error('Failed to delete command:', error)
+      // 如果失败，回滚状态（重新拉取）
+      await get().fetchCommands()
+    }
   },
 
   reorderCommands: async (commandIds: string[]) => {
