@@ -58,21 +58,29 @@ export default function Root() {
           <div>
             <ContextMenu>
               <ContextMenuTrigger asChild>
-                <div>
-                  <button
-                    onClick={() => setExpandedPreset(!expandedPreset)}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive("/presets")
-                        ? "bg-blue-50 text-blue-600"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
+                <div 
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors group ${
+                    isActive("/presets")
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <div 
+                    className="flex items-center gap-3 flex-1 cursor-pointer"
+                    onClick={() => navigate("/presets")}
                   >
-                    <div className="flex items-center gap-3">
-                      <Settings className="w-5 h-5" />
-                      <span>命令预设</span>
-                    </div>
-                    <ChevronRight className={`w-4 h-4 transition-transform ${expandedPreset ? "rotate-90" : ""}`} />
-                  </button>
+                    <Settings className="w-5 h-5" />
+                    <span>命令预设</span>
+                  </div>
+                  <div 
+                    className="p-1 rounded-md hover:bg-black/5 cursor-pointer transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedPreset(!expandedPreset);
+                    }}
+                  >
+                    <ChevronRight className={`w-4 h-4 transition-transform text-gray-400 group-hover:text-gray-600 ${expandedPreset ? "rotate-90" : ""}`} />
+                  </div>
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent>

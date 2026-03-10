@@ -28,6 +28,7 @@ import {
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
+import { Switch } from "./ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Badge } from "./ui/badge";
 import { toast } from "sonner";
@@ -72,6 +73,7 @@ export default function CommandPresets() {
   const [sortBy, setSortBy] = useState<'name' | 'createdAt'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const [useDefaultSort, setUseDefaultSort] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -165,6 +167,10 @@ export default function CommandPresets() {
   };
 
   const sortedPresets = [...presets].sort((a, b) => {
+    if (useDefaultSort) {
+      return (a.order || 0) - (b.order || 0);
+    }
+
     let comparison = 0;
     if (sortBy === 'name') {
       comparison = a.name.localeCompare(b.name);
@@ -248,11 +254,19 @@ export default function CommandPresets() {
             <h2 className="text-xl font-semibold text-gray-900">命令预设</h2>
             <p className="text-sm text-gray-600 mt-1">快速访问常用命令集合</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-md p-1">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="default-sort" className="text-sm text-gray-600">默认设置</Label>
+              <Switch
+                id="default-sort"
+                checked={useDefaultSort}
+                onCheckedChange={setUseDefaultSort}
+              />
+            </div>
+            <div className={`flex items-center gap-1 bg-white border border-gray-200 rounded-md p-1 transition-opacity duration-200 ${useDefaultSort ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <DropdownMenu onOpenChange={setIsSortDropdownOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 font-normal">
+                <DropdownMenuTrigger asChild disabled={useDefaultSort}>
+                  <Button variant="ghost" size="sm" className={`h-8 gap-1 px-2 font-normal ${useDefaultSort ? 'cursor-not-allowed' : ''}`} disabled={useDefaultSort}>
                     <span className="text-sm">{sortBy === 'name' ? '按名称排序' : '按时间排序'}</span>
                     <ChevronDown 
                       className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180' : ''}`} 
@@ -274,9 +288,10 @@ export default function CommandPresets() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8"
+                className={`h-8 w-8 ${useDefaultSort ? 'cursor-not-allowed' : ''}`}
                 onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                 title={sortOrder === 'asc' ? '切换为降序' : '切换为升序'}
+                disabled={useDefaultSort}
               >
                 {sortOrder === 'asc' ? (
                   <ArrowUp className="w-3.5 h-3.5 text-gray-500" />
