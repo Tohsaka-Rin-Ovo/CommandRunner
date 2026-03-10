@@ -214,7 +214,7 @@ export default function Root() {
                       ${draggingId === preset.id ? 'opacity-50 border border-dashed border-gray-300' : ''}
                       ${dragOverId === preset.id && dropPosition === 'before' ? 'border-t-2 border-t-blue-500 mt-1' : ''}
                       ${dragOverId === preset.id && dropPosition === 'after' ? 'border-b-2 border-b-blue-500 mb-1' : ''}
-                      ${useDefaultSort ? 'cursor-move' : ''}
+                      
                     `}
                     draggable={useDefaultSort}
                     onDragStart={(e) => handleDragStart(e, preset.id)}

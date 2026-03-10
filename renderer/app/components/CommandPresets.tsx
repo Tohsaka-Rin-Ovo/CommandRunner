@@ -25,6 +25,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "./ui/dropdown-menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "./ui/pagination";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
@@ -79,6 +88,8 @@ export default function CommandPresets() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchPresets();
@@ -116,6 +127,7 @@ export default function CommandPresets() {
       await savePreset(preset);
       setNewPreset({ name: "", description: "", commands: [], order: 0 });
       setShowAddDialog(false);
+      setCurrentPage(1);
     }
   };
 
@@ -144,6 +156,12 @@ export default function CommandPresets() {
       if (success) {
         console.log('[CommandPresets] 删除成功');
         toast.success("预设删除成功");
+
+        const totalAfterDelete = sortedPresets.length - 1;
+        const newTotalPages = Math.ceil(totalAfterDelete / itemsPerPage);
+        if (currentPage > newTotalPages && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+        }
       } else {
         console.error('[CommandPresets] 删除失败：API 返回 false');
         toast.error("预设删除失败，请查看控制台获取详细信息");
@@ -187,6 +205,11 @@ export default function CommandPresets() {
   const handleSortBy = (value: 'name' | 'createdAt') => {
     setSortConfig({ sortBy: value });
   };
+
+  const totalPages = Math.ceil(sortedPresets.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPresets = sortedPresets.slice(startIndex, endIndex);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     if (!useDefaultSort) return;
@@ -236,16 +259,16 @@ export default function CommandPresets() {
     if (!draggingId || draggingId === targetId) return;
 
     const newSortedPresets = [...sortedPresets];
-    const fromIndex = newSortedPresets.findIndex(p => p.id === draggingId);
-    const toIndex = newSortedPresets.findIndex(p => p.id === targetId);
+    
+    const fromIndex = currentPresets.findIndex(p => p.id === draggingId);
+    const toIndex = currentPresets.findIndex(p => p.id === targetId);
 
     if (fromIndex !== -1 && toIndex !== -1) {
-      const [removed] = newSortedPresets.splice(fromIndex, 1);
-      // 根据 dropPosition 调整插入位置
-      // 如果是从上往下拖，且插入到目标下方，toIndex 不变（因为移除了上面的，下面的索引减1，但我们想要插在原来toIndex的后面，即现在的toIndex位置）
-      // 这里的逻辑有点绕，最简单的是：先移除，再计算目标的新索引，再插入
+      const globalFromIndex = (currentPage - 1) * itemsPerPage + fromIndex;
+      const globalToIndex = (currentPage - 1) * itemsPerPage + toIndex;
+
+      const [removed] = newSortedPresets.splice(globalFromIndex, 1);
       
-      // 重新计算目标索引（因为数组变了）
       let finalToIndex = newSortedPresets.findIndex(p => p.id === targetId);
       if (dropPosition === 'after') {
         finalToIndex++;
@@ -260,7 +283,6 @@ export default function CommandPresets() {
       
       console.log('[handleDrop] Reordered presets order:', reorderedPresets.map(p => ({ id: p.id, name: p.name, order: p.order })));
 
-      // 使用 reorderPresets 批量更新并立即生效
       const success = await usePresetStore.getState().reorderPresets(reorderedPresets);
       if (success) {
         toast.success('排序已保存');
@@ -373,7 +395,7 @@ export default function CommandPresets() {
                 <div 
                   className={`max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 transition-all duration-200 ${draggingSource === 'grid' ? 'ring-2 ring-blue-500 ring-opacity-50 rounded-lg p-2 bg-blue-50/30' : ''}`}
                 >
-                  {sortedPresets.map((preset, index) => {
+                  {currentPresets.map((preset, index) => {
                     const Icon = PRESET_ICONS[preset.icon as keyof typeof PRESET_ICONS] || Package;
                     const execution = getPresetStatus(preset.id);
                     const isExpanded = expandedPresets.has(preset.id);
@@ -559,23 +581,74 @@ export default function CommandPresets() {
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
                             删除预设
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      </ContextMenu>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </ContextMenuTrigger>
-          <ContextMenuContent>
+                           </ContextMenuItem>
+                           </ContextMenuContent>
+                         </ContextMenu>
+                       );
+                     })}
+                   </div>
+                 )}
+               </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
             <ContextMenuItem onClick={() => setShowAddDialog(true)}>
               <BookmarkPlus className="w-4 h-4 mr-2" />
               添加预设
             </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
-      </div>
+           </ContextMenuContent>
+         </ContextMenu>
+
+         {totalPages > 1 && (
+           <div className="mt-6 flex justify-center">
+             <Pagination>
+               <PaginationContent>
+                 <PaginationItem>
+                   <PaginationPrevious
+                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                     className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                   />
+                 </PaginationItem>
+                 {[...Array(totalPages)].map((_, index) => {
+                   const pageNumber = index + 1;
+                   if (
+                     pageNumber === 1 ||
+                     pageNumber === totalPages ||
+                     (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                   ) {
+                     return (
+                       <PaginationItem key={pageNumber}>
+                         <PaginationLink
+                           onClick={() => setCurrentPage(pageNumber)}
+                           isActive={currentPage === pageNumber}
+                           className="cursor-pointer"
+                         >
+                           {pageNumber}
+                         </PaginationLink>
+                       </PaginationItem>
+                     );
+                   } else if (
+                     pageNumber === currentPage - 2 ||
+                     pageNumber === currentPage + 2
+                   ) {
+                     return (
+                       <PaginationItem key={pageNumber}>
+                         <PaginationEllipsis />
+                       </PaginationItem>
+                     );
+                   }
+                   return null;
+                 })}
+                 <PaginationItem>
+                   <PaginationNext
+                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                     className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                   />
+                 </PaginationItem>
+               </PaginationContent>
+             </Pagination>
+           </div>
+         )}
+       </div>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="max-w-2xl">
