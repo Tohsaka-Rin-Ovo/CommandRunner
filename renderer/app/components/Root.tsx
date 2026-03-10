@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { List, Bookmark, History, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -27,6 +27,10 @@ export default function Root() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const handleScrollRef = useRef<(() => void) | null>(null);
 
   const handleAddPreset = () => {
     if (newPresetName.trim()) {
@@ -133,6 +137,46 @@ export default function Root() {
     setDraggingId(null);
   };
 
+  useEffect(() => {
+    // 延迟绑定，确保 DOM 已渲染
+    const timeout = setTimeout(() => {
+      const scrollContainer = scrollContainerRef.current;
+      if (!scrollContainer) {
+        console.warn('scrollContainerRef.current is null, retrying...');
+        return;
+      }
+
+      const handleScroll = () => {
+        scrollContainer.classList.add("scrolling");
+        
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+        
+        scrollTimeoutRef.current = setTimeout(() => {
+          scrollContainer.classList.remove("scrolling");
+        }, 1000);
+      };
+
+      // 保存函数引用
+      handleScrollRef.current = handleScroll;
+
+      scrollContainer.addEventListener("scroll", handleScroll);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeout);
+      const scrollContainer = scrollContainerRef.current;
+      const handleScroll = handleScrollRef.current;
+      if (scrollContainer && handleScroll) {
+        scrollContainer.removeEventListener("scroll", handleScroll);
+      }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="flex h-screen bg-gray-50">
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
@@ -140,7 +184,7 @@ export default function Root() {
           <h1 className="text-xl font-semibold text-gray-900">命令管理</h1>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar" ref={scrollContainerRef}>
           <Link
             to="/"
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Plus, GripHorizontal, ChevronDown, ChevronRight, Play, Trash2, Edit, RotateCcw, CheckCircle, XCircle, AlertCircle, MinusCircle, Bookmark } from "lucide-react";
 import { Button } from "./ui/button";
@@ -86,6 +86,10 @@ export default function CommandList() {
   const [showAddToPresetDialog, setShowAddToPresetDialog] = useState(false);
   const [selectedCommandForPreset, setSelectedCommandForPreset] = useState<Command | null>(null);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const handleScrollRef = useRef<(() => void) | null>(null);
+
   const presets = usePresetStore((state) => state.presets);
   const fetchPresets = usePresetStore((state) => state.fetchPresets);
   const updatePreset = usePresetStore((state) => state.updatePreset);
@@ -113,6 +117,43 @@ export default function CommandList() {
       }
     }
   };
+
+  useEffect(() => {
+    // 延迟绑定，确保 DOM 已渲染
+    const timeout = setTimeout(() => {
+      const scrollContainer = scrollContainerRef.current;
+      if (!scrollContainer) return;
+
+      const handleScroll = () => {
+        scrollContainer.classList.add("scrolling");
+        
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+        
+        scrollTimeoutRef.current = setTimeout(() => {
+          scrollContainer.classList.remove("scrolling");
+        }, 1000);
+      };
+
+      // 保存函数引用
+      handleScrollRef.current = handleScroll;
+
+      scrollContainer.addEventListener("scroll", handleScroll);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeout);
+      const scrollContainer = scrollContainerRef.current;
+      const handleScroll = handleScrollRef.current;
+      if (scrollContainer && handleScroll) {
+        scrollContainer.removeEventListener("scroll", handleScroll);
+      }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     fetchCommands();
@@ -356,7 +397,7 @@ export default function CommandList() {
       </div>
 
       {/* 命令列表 */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-6 custom-scrollbar" ref={scrollContainerRef}>
         <div className="max-w-5xl mx-auto space-y-3">
           {currentCommands.map((command) => (
             <ContextMenu key={command.id}>
