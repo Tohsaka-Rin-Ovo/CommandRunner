@@ -76,6 +76,8 @@ export default function CommandPresets() {
   const [useDefaultSort, setUseDefaultSort] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
 
   useEffect(() => {
     fetchPresets();
@@ -186,19 +188,47 @@ export default function CommandPresets() {
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
+    if (!useDefaultSort) return;
     setIsDragging(true);
     setDraggingId(id);
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, targetId: string) => {
+    if (!useDefaultSort) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+
+    if (draggingId === targetId) {
+      setDragOverId(null);
+      setDropPosition(null);
+      return;
+    }
+
+    const targetElement = e.currentTarget as HTMLElement;
+    const rect = targetElement.getBoundingClientRect();
+    const mouseY = e.clientY;
+    const threshold = rect.top + rect.height / 2;
+
+    setDragOverId(targetId);
+    if (mouseY < threshold) {
+      setDropPosition('before');
+    } else {
+      setDropPosition('after');
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverId(null);
+    setDropPosition(null);
   };
 
   const handleDrop = async (e: React.DragEvent, targetId: string) => {
+    if (!useDefaultSort) return;
     e.preventDefault();
     setIsDragging(false);
+    setDragOverId(null);
+    setDropPosition(null);
 
     if (!draggingId || draggingId === targetId) return;
 
@@ -208,18 +238,32 @@ export default function CommandPresets() {
 
     if (fromIndex !== -1 && toIndex !== -1) {
       const [removed] = newSortedPresets.splice(fromIndex, 1);
-      newSortedPresets.splice(toIndex, 0, removed);
+      // 根据 dropPosition 调整插入位置
+      // 如果是从上往下拖，且插入到目标下方，toIndex 不变（因为移除了上面的，下面的索引减1，但我们想要插在原来toIndex的后面，即现在的toIndex位置）
+      // 这里的逻辑有点绕，最简单的是：先移除，再计算目标的新索引，再插入
+      
+      // 重新计算目标索引（因为数组变了）
+      let finalToIndex = newSortedPresets.findIndex(p => p.id === targetId);
+      if (dropPosition === 'after') {
+        finalToIndex++;
+      }
+
+      newSortedPresets.splice(finalToIndex, 0, removed);
 
       const reorderedPresets = newSortedPresets.map((preset, index) => ({
         ...preset,
         order: index
       }));
+      
+      console.log('[handleDrop] Reordered presets order:', reorderedPresets.map(p => ({ id: p.id, name: p.name, order: p.order })));
 
-      for (const preset of reorderedPresets) {
-        await updatePreset(preset.id, preset);
+      // 使用 reorderPresets 批量更新并立即生效
+      const success = await usePresetStore.getState().reorderPresets(reorderedPresets);
+      if (success) {
+        toast.success('排序已保存');
+      } else {
+        toast.error('排序保存失败');
       }
-
-      toast.success('排序已保存');
     }
 
     setDraggingId(null);
@@ -332,11 +376,17 @@ export default function CommandPresets() {
                       <ContextMenu key={preset.id}>
                          <ContextMenuTrigger asChild>
                            <div
-                             draggable
-                             className={`bg-white rounded-lg border ${isDragging && draggingId === preset.id ? 'border-blue-500 border-2' : 'border-gray-200'} hover:shadow-md transition-shadow`}
+                             draggable={useDefaultSort}
+                             className={`bg-white rounded-lg border relative transition-all duration-200
+                               ${isDragging && draggingId === preset.id ? 'opacity-50 border-dashed border-gray-300' : 'border-gray-200 hover:shadow-md'}
+                               ${useDefaultSort ? 'cursor-move' : ''}
+                               ${dragOverId === preset.id && dropPosition === 'before' ? 'border-t-2 border-t-blue-500 mt-2' : ''}
+                               ${dragOverId === preset.id && dropPosition === 'after' ? 'border-b-2 border-b-blue-500 mb-2' : ''}
+                             `}
                              onDragStart={(e) => handleDragStart(e, preset.id)}
                              onDragEnd={handleDragEnd}
-                             onDragOver={handleDragOver}
+                             onDragOver={(e) => handleDragOver(e, preset.id)}
+                             onDragLeave={handleDragLeave}
                              onDrop={(e) => handleDrop(e, preset.id)}
                              onContextMenu={(e) => e.stopPropagation()}
                            >

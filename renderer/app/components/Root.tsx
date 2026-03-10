@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { List, Settings, History, ChevronRight, Plus } from "lucide-react";
+import { toast } from "sonner";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -16,9 +17,13 @@ export default function Root() {
   const location = useLocation();
   const navigate = useNavigate();
   const presets = usePresetStore((state) => state.presets);
+  const updatePreset = usePresetStore((state) => state.updatePreset);
   const [expandedPreset, setExpandedPreset] = useState(false);
   const [showAddPresetDialog, setShowAddPresetDialog] = useState(false);
   const [newPresetName, setNewPresetName] = useState("");
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
 
   const handleAddPreset = () => {
     if (newPresetName.trim()) {
@@ -33,6 +38,84 @@ export default function Root() {
       return location.pathname === "/";
     }
     return location.pathname.startsWith(path);
+  };
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggingId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    if (draggingId === targetId) {
+      setDragOverId(null);
+      setDropPosition(null);
+      return;
+    }
+
+    const targetElement = e.currentTarget as HTMLElement;
+    const rect = targetElement.getBoundingClientRect();
+    const mouseY = e.clientY;
+    const threshold = rect.top + rect.height / 2;
+
+    setDragOverId(targetId);
+    if (mouseY < threshold) {
+      setDropPosition('before');
+    } else {
+      setDropPosition('after');
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverId(null);
+    setDropPosition(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    setDragOverId(null);
+    setDropPosition(null);
+
+    if (!draggingId || draggingId === targetId) return;
+
+    // 这里我们需要按 order 排序的 presets，store 中的 presets 可能已经是排序过的
+    // 但为了保险，我们可以假设 presets 数组的顺序就是当前显示顺序
+    // 如果 presets 是按其他方式排序的，这里的逻辑可能需要调整
+    // 假设侧边栏总是显示默认排序（按 order）
+    
+    // 创建副本并重新排序
+    const newPresets = [...presets].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const fromIndex = newPresets.findIndex(p => p.id === draggingId);
+    const toIndex = newPresets.findIndex(p => p.id === targetId);
+
+    if (fromIndex !== -1 && toIndex !== -1) {
+      const [removed] = newPresets.splice(fromIndex, 1);
+      
+      // 重新计算目标索引
+      let finalToIndex = newPresets.findIndex(p => p.id === targetId);
+      if (dropPosition === 'after') {
+        finalToIndex++;
+      }
+
+      newPresets.splice(finalToIndex, 0, removed);
+
+      const reorderedPresets = newPresets.map((preset, index) => ({
+        ...preset,
+        order: index
+      }));
+
+      // 使用 reorderPresets 批量更新并立即生效
+      const success = await usePresetStore.getState().reorderPresets(reorderedPresets);
+      if (success) {
+        toast.success('排序已保存');
+      } else {
+        toast.error('排序保存失败');
+      }
+    }
+
+    setDraggingId(null);
   };
 
   return (
@@ -93,11 +176,22 @@ export default function Root() {
 
             {expandedPreset && presets.length > 0 && (
               <div className="ml-8 mt-1 space-y-1">
-                {presets.map((preset) => (
+                {[...presets]
+                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                  .map((preset) => (
                   <Link
                     key={preset.id}
                     to="/presets"
-                    className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                    className={`block px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg relative transition-all duration-200
+                      ${draggingId === preset.id ? 'opacity-50 border border-dashed border-gray-300' : ''}
+                      ${dragOverId === preset.id && dropPosition === 'before' ? 'border-t-2 border-t-blue-500 mt-1' : ''}
+                      ${dragOverId === preset.id && dropPosition === 'after' ? 'border-b-2 border-b-blue-500 mb-1' : ''}
+                    `}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, preset.id)}
+                    onDragOver={(e) => handleDragOver(e, preset.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, preset.id)}
                   >
                     {preset.name}
                   </Link>

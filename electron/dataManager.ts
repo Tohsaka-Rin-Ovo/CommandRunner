@@ -215,17 +215,18 @@ export function updatePreset(id: string, updates: any): boolean {
   console.log('[DataManager] updatePreset called:', id, updates);
 
   const presets = getPresets()
-  console.log('[DataManager] 当前预设列表:', presets);
+  // 打印所有 ID 类型以排查
+  console.log('[DataManager] Existing IDs:', presets.map(p => ({ id: p.id, type: typeof p.id })));
 
-  const index = presets.findIndex(p => p.id === id)
+  // 强制转换为字符串比较
+  const index = presets.findIndex(p => String(p.id) === String(id))
   console.log('[DataManager] 预设索引:', index);
 
   if (index >= 0) {
     const oldPreset = presets[index];
-    const newPreset = { ...presets[index], ...updates, updatedAt: Date.now() }
+    const newPreset = { ...oldPreset, ...updates, updatedAt: Date.now() }
     presets[index] = newPreset
 
-    console.log('[DataManager] 更新前:', oldPreset);
     console.log('[DataManager] 更新后:', newPreset);
 
     const writeResult = writeFile('presets.json', presets)
