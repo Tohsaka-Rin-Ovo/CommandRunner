@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router";
-import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus } from "lucide-react";
+import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   ContextMenu,
@@ -18,6 +18,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuPortal,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "./ui/dropdown-menu";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
@@ -61,6 +68,9 @@ export default function CommandPresets() {
     description: "",
     commands: [],
   });
+  const [sortBy, setSortBy] = useState<'name' | 'createdAt'>('name');
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPresets();
@@ -151,6 +161,64 @@ export default function CommandPresets() {
     stopPreset(id);
   };
 
+  const sortedPresets = [...presets].sort((a, b) => {
+    if (sortBy === 'name') {
+      return a.name.localeCompare(b.name);
+    } else if (sortBy === 'createdAt') {
+      return b.createdAt - a.createdAt;
+    }
+    return 0;
+  });
+
+  const handleSortBy = (value: 'name' | 'createdAt') => {
+    setSortBy(value);
+  };
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setIsDragging(true);
+    setDraggingId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    if (!draggingId || draggingId === targetId) return;
+
+    const newSortedPresets = [...sortedPresets];
+    const fromIndex = newSortedPresets.findIndex(p => p.id === draggingId);
+    const toIndex = newSortedPresets.findIndex(p => p.id === targetId);
+
+    if (fromIndex !== -1 && toIndex !== -1) {
+      const [removed] = newSortedPresets.splice(fromIndex, 1);
+      newSortedPresets.splice(toIndex, 0, removed[0]);
+
+      const reorderedPresets = newSortedPresets.map((preset, index) => ({
+        ...preset,
+        order: index
+      }));
+
+      for (const preset of reorderedPresets) {
+        await updatePreset(preset.id, preset);
+      }
+
+      toast.success('排序已保存');
+    }
+
+    setDraggingId(null);
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    setDraggingId(null);
+  };
+
   const getPresetStatus = (id: string) => {
     const execution = activePresets.get(id);
     return execution;
@@ -175,10 +243,30 @@ export default function CommandPresets() {
             <h2 className="text-xl font-semibold text-gray-900">命令预设</h2>
             <p className="text-sm text-gray-600 mt-1">快速访问常用命令集合</p>
           </div>
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="w-4 h-4 mr-1" />
-            添加预设
-          </Button>
+          <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <GripVertical className="w-4 h-4 mr-1" />
+                调整顺序
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleSortBy('name')}>
+                  按名称排序
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSortBy('createdAt')}>
+                  按时间排序
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenuPortal>
+          </DropdownMenu>
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="w-4 h-4 mr-1" />
+              添加预设
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -190,25 +278,30 @@ export default function CommandPresets() {
                 <div className="flex items-center justify-center h-64">
                   <div className="text-gray-500">加载中...</div>
                 </div>
-              ) : presets.length === 0 ? (
+              ) : sortedPresets.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-gray-500">
                   <Package className="w-12 h-12 mb-4 opacity-50" />
                   <p>暂无预设，点击上方按钮或右键创建</p>
                 </div>
               ) : (
                 <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {presets.map((preset) => {
+                  {sortedPresets.map((preset, index) => {
                     const Icon = PRESET_ICONS[preset.icon as keyof typeof PRESET_ICONS] || Package;
                     const execution = getPresetStatus(preset.id);
                     const isExpanded = expandedPresets.has(preset.id);
 
                     return (
                       <ContextMenu key={preset.id}>
-                        <ContextMenuTrigger asChild>
-                          <div
-                            className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
-                            onContextMenu={(e) => e.stopPropagation()}
-                          >
+                         <ContextMenuTrigger asChild>
+                           <div
+                             draggable
+                             className={`bg-white rounded-lg border ${isDragging && draggingId === preset.id ? 'border-blue-500 border-2' : 'border-gray-200'} hover:shadow-md transition-shadow`}
+                             onDragStart={(e) => handleDragStart(e, preset.id)}
+                             onDragEnd={handleDragEnd}
+                             onDragOver={handleDragOver}
+                             onDrop={(e) => handleDrop(e, preset.id)}
+                             onContextMenu={(e) => e.stopPropagation()}
+                           >
                             <div className="p-5">
                               <div className="flex items-center justify-between gap-4">
                                 <div
@@ -419,27 +512,27 @@ export default function CommandPresets() {
               <div className="mt-2 space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
                 {commands.map((cmd) => (
                   <label key={cmd.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newPreset.commands.some((c) => c.id === cmd.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setNewPreset({
-                            ...newPreset,
-                            commands: [
-                              ...newPreset.commands,
-                              { id: cmd.id, content: cmd.content, order: newPreset.commands.length },
-                            ],
-                          });
-                        } else {
-                          setNewPreset({
-                            ...newPreset,
-                            commands: newPreset.commands.filter((c) => c.id !== cmd.id),
-                          });
-                        }
-                      }}
-                      className="mt-1"
-                    />
+                     <input
+                       type="checkbox"
+                       checked={newPreset.commands.some((c) => c.id === cmd.id)}
+                       onChange={(e) => {
+                         if (e.target.checked) {
+                           setNewPreset({
+                             ...newPreset,
+                             commands: [
+                               ...newPreset.commands,
+                               { id: cmd.id, content: cmd.content, description: cmd.description, details: cmd.details, order: newPreset.commands.length },
+                             ],
+                           });
+                         } else {
+                           setNewPreset({
+                             ...newPreset,
+                             commands: newPreset.commands.filter((c) => c.id !== cmd.id),
+                           });
+                         }
+                       }}
+                       className="mt-1"
+                     />
                     <div className="flex-1">
                       <code className="text-sm font-mono">{cmd.content}</code>
                       {cmd.description && <p className="text-xs text-gray-500 mt-1">{cmd.description}</p>}
@@ -470,45 +563,47 @@ export default function CommandPresets() {
                 <Input
                   id="edit-name"
                   value={editingPreset.name}
-                  onChange={(e) => setEditingPreset({ ...editingPreset, name: e.target.value })}
+                  onChange={(e) => setEditingPreset(prev => prev ? { ...prev, name: e.target.value } : null)}
                 />
               </div>
-               <div className="space-y-2">
-                 <Label htmlFor="edit-description">描述</Label>
-                 <Textarea
-                   id="edit-description"
-                   value={editingPreset.description || ""}
-                   onChange={(e) => setEditingPreset(prev => ({ ...prev, description: e.target.value }))}
-                 />
-               </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">描述</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editingPreset.description || ""}
+                  onChange={(e) => setEditingPreset(prev => prev ? { ...prev, description: e.target.value } : null)}
+                />
+              </div>
                <div className="space-y-2">
                  <Label>选择命令</Label>
                  <div className="mt-2 space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
                    {commands.map((cmd) => (
                      <label key={cmd.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                       <input
-                         type="checkbox"
-                         checked={editingPreset.commands.some((c) => c.id === cmd.id)}
-                         onChange={(e) => {
-                           setEditingPreset(prev => {
-                             if (e.target.checked) {
-                               return {
-                                 ...prev,
-                                 commands: [
-                                   ...prev.commands,
-                                   { id: cmd.id, content: cmd.content, order: prev.commands.length },
-                                 ],
-                               };
-                             } else {
-                               return {
-                                 ...prev,
-                                 commands: prev.commands.filter((c) => c.id !== cmd.id),
-                               };
-                             }
-                           });
-                         }}
-                         className="mt-1"
-                       />
+                        <input
+                          type="checkbox"
+                          checked={editingPreset.commands.some((c) => c.id === cmd.id)}
+                          onChange={(e) => {
+                            setEditingPreset(prev => {
+                              if (!prev) return prev;
+
+                              if (e.target.checked) {
+                                return {
+                                  ...prev,
+                                  commands: [
+                                    ...prev.commands,
+                                    { id: cmd.id, content: cmd.content, description: cmd.description, details: cmd.details, order: prev.commands.length },
+                                  ],
+                                };
+                              } else {
+                                return {
+                                  ...prev,
+                                  commands: prev.commands.filter((c) => c.id !== cmd.id),
+                                };
+                              }
+                            });
+                          }}
+                          className="mt-1"
+                        />
                        <div className="flex-1">
                          <code className="text-sm font-mono">{cmd.content}</code>
                          {cmd.description && <p className="text-xs text-gray-500 mt-1">{cmd.description}</p>}

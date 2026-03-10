@@ -22,6 +22,7 @@ export interface Preset {
   icon?: string;
   commands: PresetCommand[];
   isDefault?: boolean;
+  order: number;
   createdAt: number;
   updatedAt: number;
 }
