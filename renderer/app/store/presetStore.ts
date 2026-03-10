@@ -52,11 +52,37 @@ export const usePresetStore = create<PresetStore>((set, get) => ({
   },
 
   deletePreset: async (id: string) => {
-    const result = await window.electronAPI.deletePreset(id);
-    if (result) {
+    console.log('[presetStore] deletePreset called:', id);
+
+    // 乐观更新：立即从本地状态中移除
+    set((state) => ({
+      presets: state.presets.filter((p) => p.id !== id),
+    }))
+
+    try {
+      if (window.electronAPI) {
+        console.log('[presetStore] 调用 electronAPI.deletePreset:', id);
+        const result = await window.electronAPI.deletePreset(id);
+        console.log('[presetStore] electronAPI.deletePreset 返回结果:', result);
+
+        if (!result) {
+          console.error('[presetStore] 删除预设失败：API 返回 false');
+          // 如果后端返回失败，重新拉取以回滚
+          await get().fetchPresets();
+          return false;
+        }
+        console.log('[presetStore] 删除预设成功');
+        return true;
+      } else {
+        console.error('[presetStore] electronAPI is not defined');
+        return false;
+      }
+    } catch (error) {
+      console.error('[presetStore] 删除预设异常:', error);
+      // 发生异常，回滚状态
       await get().fetchPresets();
+      return false;
     }
-    return result;
   },
 
   setExpandedPreset: (presetId: string | null) => {

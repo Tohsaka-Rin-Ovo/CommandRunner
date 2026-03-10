@@ -3,9 +3,11 @@ import path from 'path'
 import { app } from 'electron'
 
 const DATA_DIR = path.join(app.getPath('userData'), 'data')
+console.log('[DataManager] DATA_DIR:', DATA_DIR)
 
 function ensureDataDir(): void {
   if (!fs.existsSync(DATA_DIR)) {
+    console.log('[DataManager] Creating DATA_DIR:', DATA_DIR)
     fs.mkdirSync(DATA_DIR, { recursive: true })
   }
 }
@@ -31,7 +33,9 @@ function writeFile<T>(filename: string, data: T): boolean {
   const filePath = path.join(DATA_DIR, filename)
   
   try {
+    console.log(`[DataManager] Writing to ${filePath}`)
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
+    console.log(`[DataManager] Successfully wrote to ${filePath}`)
     return true
   } catch (error) {
     console.error(`Error writing ${filename}:`, error)
@@ -148,7 +152,7 @@ export function saveCommand(command: any): boolean {
   if (index >= 0) {
     commands[index] = { ...commands[index], ...command, updatedAt: Date.now() }
   } else {
-    commands.push({
+    commands.unshift({
       ...command,
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -235,9 +239,24 @@ export function updatePreset(id: string, updates: any): boolean {
 }
 
 export function deletePreset(id: string): boolean {
+  console.log('[DataManager] deletePreset called:', id);
   const presets = getPresets()
+  const initialLength = presets.length;
+  console.log('[DataManager] 当前预设数量:', initialLength);
+
   const filtered = presets.filter(p => p.id !== id)
-  return writeFile('presets.json', filtered)
+  const filteredLength = filtered.length;
+  console.log('[DataManager] 过滤后预设数量:', filteredLength);
+
+  if (initialLength === filteredLength) {
+    console.warn('[DataManager] 未找到要删除的预设:', id);
+    // 如果预设不存在，认为删除成功（幂等性）
+    return true
+  }
+
+  const result = writeFile('presets.json', filtered)
+  console.log('[DataManager] deletePreset 写入结果:', result);
+  return result
 }
 
 export function getPresetCommands(presetId: string, commandIds: string[]): string[] {

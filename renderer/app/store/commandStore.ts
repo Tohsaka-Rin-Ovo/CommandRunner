@@ -32,8 +32,24 @@ export const useCommandStore = create<CommandStore>((set, get) => ({
   },
 
   saveCommand: async (command: Command) => {
-    await window.electronAPI.saveCommand(command)
-    await get().fetchCommands()
+    // 乐观更新：立即添加到列表开头
+    set((state) => ({
+      commands: [command, ...state.commands],
+    }))
+
+    try {
+      if (window.electronAPI) {
+        await window.electronAPI.saveCommand(command)
+      } else {
+        console.error('electronAPI is not defined, skipping backend save')
+      }
+      // 重新拉取以确保数据一致性（特别是如果后端对数据做了处理）
+      await get().fetchCommands()
+    } catch (error) {
+      console.error('Failed to save command:', error)
+      // 如果失败，回滚状态（重新拉取）
+      await get().fetchCommands()
+    }
   },
 
   updateCommand: async (id: string, updates: Partial<Command>) => {
@@ -48,9 +64,11 @@ export const useCommandStore = create<CommandStore>((set, get) => ({
     }))
     
     try {
-      await window.electronAPI.deleteCommand(id)
-      // 可选：如果后端返回最新的列表，可以再次同步
-      // await get().fetchCommands()
+      if (window.electronAPI) {
+        await window.electronAPI.deleteCommand(id)
+      } else {
+        console.error('electronAPI is not defined, skipping backend delete')
+      }
     } catch (error) {
       console.error('Failed to delete command:', error)
       // 如果失败，回滚状态（重新拉取）

@@ -21,11 +21,15 @@ function createWindow() {
       nodeIntegration: false,
       nodeIntegrationInWorker: false,
       webSecurity: true,
-      sandbox: true,
+      sandbox: false, // 禁用沙箱以确保 preload 正确加载和通信
     },
     title: 'CommandRunner',
     backgroundColor: '#f9fafb',
   })
+
+  // 调试日志：打印 preload 路径
+  console.log('[Main] __dirname:', __dirname)
+  console.log('[Main] Preload path:', path.join(__dirname, '../preload/index.js'))
 
   if (isDev) {
     const port = process.env.ELECTRON_RENDERER_URL ? new URL(process.env.ELECTRON_RENDERER_URL).port : '5173'

@@ -28,6 +28,11 @@ function App() {
   }, [fetchCommands, fetchPresets, fetchHistory])
 
   useEffect(() => {
+    if (!window.electronAPI) {
+      console.warn('electronAPI is not available, skipping event listeners')
+      return
+    }
+
     const cleanupOutput = window.electronAPI.onCommandOutput((data) => {
       updateCommandOutput(data.commandId, data.line, data.type)
     })
