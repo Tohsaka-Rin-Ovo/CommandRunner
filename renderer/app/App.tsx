@@ -79,7 +79,7 @@ function App() {
   return (
     <>
       <RouterProvider router={router} />
-      <Toaster />
+      <Toaster toastOptions={{ duration: 2500 }} />
     </>
   )
 }

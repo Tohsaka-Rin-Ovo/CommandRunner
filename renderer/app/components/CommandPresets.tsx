@@ -89,7 +89,7 @@ export default function CommandPresets() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 8;
 
   useEffect(() => {
     fetchPresets();
@@ -117,26 +117,34 @@ export default function CommandPresets() {
   };
 
   const handleAddPreset = async () => {
-    if (newPreset.name.trim()) {
-      const preset: Preset = {
-        ...newPreset,
-        id: Date.now().toString(),
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      await savePreset(preset);
-      setNewPreset({ name: "", description: "", commands: [], order: 0 });
-      setShowAddDialog(false);
-      setCurrentPage(1);
+    if (!newPreset.name || !newPreset.name.trim()) {
+      toast.error("预设名称不能为空");
+      return;
     }
+
+    const preset: Preset = {
+      ...newPreset,
+      id: Date.now().toString(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    await savePreset(preset);
+    setNewPreset({ name: "", description: "", commands: [], order: 0 });
+    setShowAddDialog(false);
+    setCurrentPage(1);
   };
 
   const handleEditPreset = async () => {
-    if (editingPreset) {
-      await updatePreset(editingPreset.id, editingPreset);
-      setEditingPreset(null);
-      setShowEditDialog(false);
+    if (!editingPreset) return;
+
+    if (!editingPreset.name || !editingPreset.name.trim()) {
+      toast.error("预设名称不能为空");
+      return;
     }
+
+    await updatePreset(editingPreset.id, editingPreset);
+    setEditingPreset(null);
+    setShowEditDialog(false);
   };
 
   const handleDeletePreset = (id: string) => {

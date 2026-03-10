@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { List, Settings, History, ChevronRight, Plus } from "lucide-react";
+import { List, Bookmark, History, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   ContextMenu,
@@ -156,20 +156,20 @@ export default function Root() {
           <div>
             <ContextMenu>
               <ContextMenuTrigger asChild>
-                <div 
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors group ${
+                <div
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors group cursor-pointer ${
                     isActive("/presets")
                       ? "bg-blue-50 text-blue-600"
                       : "text-gray-700 hover:bg-gray-100"
                   }`}
+                  onClick={() => navigate("/presets")}
                 >
-                  <div 
-                    className="flex items-center gap-3 flex-1 cursor-pointer"
-                    onClick={() => navigate("/presets")}
-                  >
-                    <Settings className="w-5 h-5" />
-                    <span>命令预设</span>
-                  </div>
+                   <div
+                      className="flex items-center gap-3 flex-1"
+                    >
+                      <Bookmark className="w-5 h-5" />
+                      <span>命令预设</span>
+                    </div>
                   <div 
                     className="p-1 rounded-md hover:bg-black/5 cursor-pointer transition-colors"
                     onClick={(e) => {
