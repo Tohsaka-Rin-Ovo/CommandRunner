@@ -16,8 +16,13 @@ export const useHistoryStore = create<HistoryStore>((set, get) => ({
   fetchHistory: async () => {
     set({ loading: true })
     try {
-      const history = await window.electronAPI.getHistory()
-      set({ history, loading: false })
+      if (window.electronAPI) {
+        const history = await window.electronAPI.getHistory()
+        set({ history, loading: false })
+      } else {
+        console.warn('electronAPI is not defined, skipping fetchHistory')
+        set({ loading: false })
+      }
     } catch (error) {
       console.error('Failed to fetch history:', error)
       set({ loading: false })

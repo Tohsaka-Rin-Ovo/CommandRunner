@@ -220,22 +220,22 @@ export function updatePreset(id: string, updates: any): boolean {
 
   // 强制转换为字符串比较
   const index = presets.findIndex(p => String(p.id) === String(id))
-  console.log('[DataManager] 预设索引:', index);
+  console.log('[DataManager] Preset index:', index);
 
   if (index >= 0) {
     const oldPreset = presets[index];
     const newPreset = { ...oldPreset, ...updates, updatedAt: Date.now() }
     presets[index] = newPreset
 
-    console.log('[DataManager] 更新后:', newPreset);
+    console.log('[DataManager] Updated preset:', newPreset);
 
     const writeResult = writeFile('presets.json', presets)
-    console.log('[DataManager] 写入结果:', writeResult);
+    console.log('[DataManager] Write result:', writeResult);
 
     return writeResult
   }
 
-  console.error('[DataManager] 预设不存在:', id);
+  console.error('[DataManager] Preset not found:', id);
   return false
 }
 
@@ -243,20 +243,20 @@ export function deletePreset(id: string): boolean {
   console.log('[DataManager] deletePreset called:', id);
   const presets = getPresets()
   const initialLength = presets.length;
-  console.log('[DataManager] 当前预设数量:', initialLength);
+  console.log('[DataManager] Initial presets count:', initialLength);
 
   const filtered = presets.filter(p => p.id !== id)
   const filteredLength = filtered.length;
-  console.log('[DataManager] 过滤后预设数量:', filteredLength);
+  console.log('[DataManager] Filtered presets count:', filteredLength);
 
   if (initialLength === filteredLength) {
-    console.warn('[DataManager] 未找到要删除的预设:', id);
+    console.warn('[DataManager] Preset not found for deletion:', id);
     // 如果预设不存在，认为删除成功（幂等性）
     return true
   }
 
   const result = writeFile('presets.json', filtered)
-  console.log('[DataManager] deletePreset 写入结果:', result);
+  console.log('[DataManager] deletePreset write result:', result);
   return result
 }
 

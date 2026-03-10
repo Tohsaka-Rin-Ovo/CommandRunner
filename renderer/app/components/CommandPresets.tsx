@@ -70,10 +70,11 @@ export default function CommandPresets() {
     commands: [],
     order: 0,
   });
-  const [sortBy, setSortBy] = useState<'name' | 'createdAt'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const { sortBy, sortOrder, useDefaultSort } = usePresetStore((state) => state.sortConfig);
+  const setSortConfig = usePresetStore((state) => state.setSortConfig);
+  const draggingSource = usePresetStore((state) => state.draggingSource);
+  const setDraggingSource = usePresetStore((state) => state.setDraggingSource);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
-  const [useDefaultSort, setUseDefaultSort] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -184,18 +185,20 @@ export default function CommandPresets() {
   });
 
   const handleSortBy = (value: 'name' | 'createdAt') => {
-    setSortBy(value);
+    setSortConfig({ sortBy: value });
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     if (!useDefaultSort) return;
     setIsDragging(true);
     setDraggingId(id);
+    setDraggingSource('grid');
+    e.dataTransfer.setData('source', 'grid');
     e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDragOver = (e: React.DragEvent, targetId: string) => {
-    if (!useDefaultSort) return;
+    if (!useDefaultSort || draggingSource !== 'grid') return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
 
@@ -207,11 +210,11 @@ export default function CommandPresets() {
 
     const targetElement = e.currentTarget as HTMLElement;
     const rect = targetElement.getBoundingClientRect();
-    const mouseY = e.clientY;
-    const threshold = rect.top + rect.height / 2;
+    const mouseX = e.clientX;
+    const threshold = rect.left + rect.width / 2;
 
     setDragOverId(targetId);
-    if (mouseY < threshold) {
+    if (mouseX < threshold) {
       setDropPosition('before');
     } else {
       setDropPosition('after');
@@ -224,7 +227,7 @@ export default function CommandPresets() {
   };
 
   const handleDrop = async (e: React.DragEvent, targetId: string) => {
-    if (!useDefaultSort) return;
+    if (!useDefaultSort || draggingSource !== 'grid') return;
     e.preventDefault();
     setIsDragging(false);
     setDragOverId(null);
@@ -272,6 +275,7 @@ export default function CommandPresets() {
   const handleDragEnd = () => {
     setIsDragging(false);
     setDraggingId(null);
+    setDraggingSource(null);
   };
 
   const getPresetStatus = (id: string) => {
@@ -304,7 +308,7 @@ export default function CommandPresets() {
               <Switch
                 id="default-sort"
                 checked={useDefaultSort}
-                onCheckedChange={setUseDefaultSort}
+                onCheckedChange={(checked) => setSortConfig({ useDefaultSort: checked })}
               />
             </div>
             <div className={`flex items-center gap-1 bg-white border border-gray-200 rounded-md p-1 transition-opacity duration-200 ${useDefaultSort ? 'opacity-50 cursor-not-allowed' : ''}`}>
@@ -333,7 +337,7 @@ export default function CommandPresets() {
                 variant="ghost" 
                 size="icon" 
                 className={`h-8 w-8 ${useDefaultSort ? 'cursor-not-allowed' : ''}`}
-                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                onClick={() => setSortConfig({ sortOrder: sortOrder === 'asc' ? 'desc' : 'asc' })}
                 title={sortOrder === 'asc' ? '切换为降序' : '切换为升序'}
                 disabled={useDefaultSort}
               >
@@ -366,7 +370,9 @@ export default function CommandPresets() {
                   <p>暂无预设，点击上方按钮或右键创建</p>
                 </div>
               ) : (
-                <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div 
+                  className={`max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 transition-all duration-200 ${draggingSource === 'grid' ? 'ring-2 ring-blue-500 ring-opacity-50 rounded-lg p-2 bg-blue-50/30' : ''}`}
+                >
                   {sortedPresets.map((preset, index) => {
                     const Icon = PRESET_ICONS[preset.icon as keyof typeof PRESET_ICONS] || Package;
                     const execution = getPresetStatus(preset.id);
@@ -380,8 +386,8 @@ export default function CommandPresets() {
                              className={`bg-white rounded-lg border relative transition-all duration-200
                                ${isDragging && draggingId === preset.id ? 'opacity-50 border-dashed border-gray-300' : 'border-gray-200 hover:shadow-md'}
                                ${useDefaultSort ? 'cursor-move' : ''}
-                               ${dragOverId === preset.id && dropPosition === 'before' ? 'border-t-2 border-t-blue-500 mt-2' : ''}
-                               ${dragOverId === preset.id && dropPosition === 'after' ? 'border-b-2 border-b-blue-500 mb-2' : ''}
+                               ${dragOverId === preset.id && dropPosition === 'before' ? 'border-l-[6px] border-l-blue-500 pl-1' : ''}
+                               ${dragOverId === preset.id && dropPosition === 'after' ? 'border-r-[6px] border-r-blue-500 pr-1' : ''}
                              `}
                              onDragStart={(e) => handleDragStart(e, preset.id)}
                              onDragEnd={handleDragEnd}
@@ -390,7 +396,7 @@ export default function CommandPresets() {
                              onDrop={(e) => handleDrop(e, preset.id)}
                              onContextMenu={(e) => e.stopPropagation()}
                            >
-                            <div className="p-5">
+                            <div className={`p-5 ${isDragging ? 'pointer-events-none' : ''}`}>
                               <div className="flex items-center justify-between gap-4">
                                 <div
                                   className="flex items-start gap-3 flex-1 cursor-pointer min-w-0"

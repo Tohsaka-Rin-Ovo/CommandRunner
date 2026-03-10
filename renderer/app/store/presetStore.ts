@@ -5,24 +5,53 @@ interface PresetStore {
   presets: Preset[]
   loading: boolean
   expandedPreset: string | null
+  sortConfig: {
+    sortBy: 'name' | 'createdAt'
+    sortOrder: 'asc' | 'desc'
+    useDefaultSort: boolean
+  }
+  draggingSource: 'sidebar' | 'grid' | null
   fetchPresets: () => Promise<void>
   savePreset: (preset: Preset) => Promise<boolean>
   updatePreset: (id: string, updates: Partial<Preset>) => Promise<boolean>
   deletePreset: (id: string) => Promise<boolean>
   reorderPresets: (newOrderPresets: Preset[]) => Promise<boolean>
   setExpandedPreset: (presetId: string | null) => void
+  setSortConfig: (config: Partial<PresetStore['sortConfig']>) => void
+  setDraggingSource: (source: 'sidebar' | 'grid' | null) => void
 }
 
 export const usePresetStore = create<PresetStore>((set, get) => ({
   presets: [],
   loading: false,
   expandedPreset: null,
+  draggingSource: null,
+  sortConfig: {
+    sortBy: 'name',
+    sortOrder: 'desc',
+    useDefaultSort: true,
+  },
+
+  setSortConfig: (config) => {
+    set((state) => ({
+      sortConfig: { ...state.sortConfig, ...config },
+    }))
+  },
+
+  setDraggingSource: (source) => {
+    set({ draggingSource: source })
+  },
 
   fetchPresets: async () => {
     set({ loading: true })
     try {
-      const presets = await window.electronAPI.getPresets()
-      set({ presets, loading: false })
+      if (window.electronAPI) {
+        const presets = await window.electronAPI.getPresets()
+        set({ presets, loading: false })
+      } else {
+        console.warn('electronAPI is not defined, skipping fetchPresets')
+        set({ loading: false })
+      }
     } catch (error) {
       console.error('Failed to fetch presets:', error)
       set({ loading: false })

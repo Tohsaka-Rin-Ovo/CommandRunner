@@ -17,6 +17,9 @@ export default function Root() {
   const location = useLocation();
   const navigate = useNavigate();
   const presets = usePresetStore((state) => state.presets);
+  const { sortBy, sortOrder, useDefaultSort } = usePresetStore((state) => state.sortConfig);
+  const draggingSource = usePresetStore((state) => state.draggingSource);
+  const setDraggingSource = usePresetStore((state) => state.setDraggingSource);
   const updatePreset = usePresetStore((state) => state.updatePreset);
   const [expandedPreset, setExpandedPreset] = useState(false);
   const [showAddPresetDialog, setShowAddPresetDialog] = useState(false);
@@ -41,11 +44,22 @@ export default function Root() {
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
+    if (!useDefaultSort) return;
     setDraggingId(id);
+    setDraggingSource('sidebar');
+    e.dataTransfer.setData('source', 'sidebar');
     e.dataTransfer.effectAllowed = 'move';
   };
 
+  const handleDragEnd = () => {
+    setDraggingId(null);
+    setDraggingSource(null);
+    setDragOverId(null);
+    setDropPosition(null);
+  };
+
   const handleDragOver = (e: React.DragEvent, targetId: string) => {
+    if (!useDefaultSort || draggingSource !== 'sidebar') return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
 
@@ -74,6 +88,7 @@ export default function Root() {
   };
 
   const handleDrop = async (e: React.DragEvent, targetId: string) => {
+    if (!useDefaultSort || draggingSource !== 'sidebar') return;
     e.preventDefault();
     setDragOverId(null);
     setDropPosition(null);
@@ -175,9 +190,22 @@ export default function Root() {
             </ContextMenu>
 
             {expandedPreset && presets.length > 0 && (
-              <div className="ml-8 mt-1 space-y-1">
+              <div 
+                className={`ml-8 mt-1 space-y-1 transition-all duration-200 ${draggingSource === 'sidebar' ? 'ring-2 ring-blue-500 ring-opacity-50 rounded-lg p-1 bg-blue-50/30' : ''}`}
+              >
                 {[...presets]
-                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                  .sort((a, b) => {
+                    if (useDefaultSort) {
+                      return (a.order || 0) - (b.order || 0);
+                    }
+                    let comparison = 0;
+                    if (sortBy === 'name') {
+                      comparison = a.name.localeCompare(b.name);
+                    } else if (sortBy === 'createdAt') {
+                      comparison = a.createdAt - b.createdAt;
+                    }
+                    return sortOrder === 'asc' ? comparison : -comparison;
+                  })
                   .map((preset) => (
                   <Link
                     key={preset.id}
@@ -186,9 +214,11 @@ export default function Root() {
                       ${draggingId === preset.id ? 'opacity-50 border border-dashed border-gray-300' : ''}
                       ${dragOverId === preset.id && dropPosition === 'before' ? 'border-t-2 border-t-blue-500 mt-1' : ''}
                       ${dragOverId === preset.id && dropPosition === 'after' ? 'border-b-2 border-b-blue-500 mb-1' : ''}
+                      ${useDefaultSort ? 'cursor-move' : ''}
                     `}
-                    draggable
+                    draggable={useDefaultSort}
                     onDragStart={(e) => handleDragStart(e, preset.id)}
+                    onDragEnd={handleDragEnd}
                     onDragOver={(e) => handleDragOver(e, preset.id)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, preset.id)}
