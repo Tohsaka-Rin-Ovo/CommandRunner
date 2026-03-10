@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router";
-import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
+import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   ContextMenu,
@@ -67,8 +67,11 @@ export default function CommandPresets() {
     name: "",
     description: "",
     commands: [],
+    order: 0,
   });
   const [sortBy, setSortBy] = useState<'name' | 'createdAt'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -106,7 +109,7 @@ export default function CommandPresets() {
         updatedAt: Date.now(),
       };
       await savePreset(preset);
-      setNewPreset({ name: "", description: "", commands: [] });
+      setNewPreset({ name: "", description: "", commands: [], order: 0 });
       setShowAddDialog(false);
     }
   };
@@ -162,12 +165,14 @@ export default function CommandPresets() {
   };
 
   const sortedPresets = [...presets].sort((a, b) => {
+    let comparison = 0;
     if (sortBy === 'name') {
-      return a.name.localeCompare(b.name);
+      comparison = a.name.localeCompare(b.name);
     } else if (sortBy === 'createdAt') {
-      return b.createdAt - a.createdAt;
+      comparison = a.createdAt - b.createdAt;
     }
-    return 0;
+    
+    return sortOrder === 'asc' ? comparison : -comparison;
   });
 
   const handleSortBy = (value: 'name' | 'createdAt') => {
@@ -197,7 +202,7 @@ export default function CommandPresets() {
 
     if (fromIndex !== -1 && toIndex !== -1) {
       const [removed] = newSortedPresets.splice(fromIndex, 1);
-      newSortedPresets.splice(toIndex, 0, removed[0]);
+      newSortedPresets.splice(toIndex, 0, removed);
 
       const reorderedPresets = newSortedPresets.map((preset, index) => ({
         ...preset,
@@ -244,24 +249,42 @@ export default function CommandPresets() {
             <p className="text-sm text-gray-600 mt-1">快速访问常用命令集合</p>
           </div>
           <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <GripVertical className="w-4 h-4 mr-1" />
-                调整顺序
+            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-md p-1">
+              <DropdownMenu onOpenChange={setIsSortDropdownOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 font-normal">
+                    <span className="text-sm">{sortBy === 'name' ? '按名称排序' : '按时间排序'}</span>
+                    <ChevronDown 
+                      className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180' : ''}`} 
+                    />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleSortBy('name')}>
+                      按名称排序
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleSortBy('createdAt')}>
+                      按时间排序
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenuPortal>
+              </DropdownMenu>
+              <div className="w-px h-4 bg-gray-200 mx-1" />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                title={sortOrder === 'asc' ? '切换为降序' : '切换为升序'}
+              >
+                {sortOrder === 'asc' ? (
+                  <ArrowUp className="w-3.5 h-3.5 text-gray-500" />
+                ) : (
+                  <ArrowDown className="w-3.5 h-3.5 text-gray-500" />
+                )}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => handleSortBy('name')}>
-                  按名称排序
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSortBy('createdAt')}>
-                  按时间排序
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenuPortal>
-          </DropdownMenu>
+            </div>
             <Button onClick={() => setShowAddDialog(true)}>
               <Plus className="w-4 h-4 mr-1" />
               添加预设
