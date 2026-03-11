@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router";
-import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
 import { Button } from "./ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { ScrollArea } from "./ui/scroll-area";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -79,6 +81,13 @@ export default function CommandPresets() {
     commands: [],
     order: 0,
   });
+
+  const [addDialogSearchQuery, setAddDialogSearchQuery] = useState('');
+  const [addDialogSelectedCommand, setAddDialogSelectedCommand] = useState<any>(null);
+  const [addDialogNewCommand, setAddDialogNewCommand] = useState({ content: '', description: '', details: '' });
+  const [editDialogSearchQuery, setEditDialogSearchQuery] = useState('');
+  const [editDialogSelectedCommand, setEditDialogSelectedCommand] = useState<any>(null);
+  const [editDialogNewCommand, setEditDialogNewCommand] = useState({ content: '', description: '', details: '' });
   const { sortBy, sortOrder, useDefaultSort } = usePresetStore((state) => state.sortConfig);
   const setSortConfig = usePresetStore((state) => state.setSortConfig);
   const draggingSource = usePresetStore((state) => state.draggingSource);
@@ -689,141 +698,512 @@ export default function CommandPresets() {
        </div>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>添加预设</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">预设名称</Label>
-              <Input
-                id="name"
-                value={newPreset.name}
-                onChange={(e) => setNewPreset({ ...newPreset, name: e.target.value })}
-                placeholder="例如：开发环境启动"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">描述（可选）</Label>
-              <Textarea
-                id="description"
-                value={newPreset.description}
-                onChange={(e) => setNewPreset({ ...newPreset, description: e.target.value })}
-                placeholder="简要描述这个预设的用途"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>选择命令</Label>
-              <div className="mt-2 space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
-                {commands.map((cmd) => (
-                  <label key={cmd.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                     <input
-                       type="checkbox"
-                       checked={newPreset.commands.some((c) => c.id === cmd.id)}
-                       onChange={(e) => {
-                         if (e.target.checked) {
-                           setNewPreset({
-                             ...newPreset,
-                             commands: [
-                               ...newPreset.commands,
-                               { id: cmd.id, content: cmd.content, description: cmd.description, details: cmd.details, order: newPreset.commands.length },
-                             ],
-                           });
-                         } else {
-                           setNewPreset({
-                             ...newPreset,
-                             commands: newPreset.commands.filter((c) => c.id !== cmd.id),
-                           });
-                         }
-                       }}
-                       className="mt-1"
-                     />
-                    <div className="flex-1">
-                      <code className="text-sm font-mono">{cmd.content}</code>
-                      {cmd.description && <p className="text-xs text-gray-500 mt-1">{cmd.description}</p>}
-                    </div>
-                  </label>
-                ))}
+          
+          <div className="flex-1 overflow-y-auto px-6">
+            <div className="space-y-4 py-3">
+              <div className="space-y-2 mb-3">
+                <Label htmlFor="name" className="mb-2">预设名称</Label>
+                <Input
+                  id="name"
+                  value={newPreset.name}
+                  onChange={(e) => setNewPreset({ ...newPreset, name: e.target.value })}
+                  placeholder="例如：开发环境启动"
+                />
               </div>
+               <div className="space-y-2 mb-3">
+                 <Label htmlFor="description" className="mb-2">描述（可选）</Label>
+                <Textarea
+                  id="description"
+                  value={newPreset.description}
+                  onChange={(e) => setNewPreset({ ...newPreset, description: e.target.value })}
+                  placeholder="简要描述这个预设的用途"
+                />
+              </div>
+              
+              {/* Tab 切换：选择命令 */}
+              <Tabs defaultValue="library" className="w-full">
+                {/* Tab 切换器 */}
+                <TabsList className="grid w-full grid-cols-2 h-10 bg-gray-100 p-0.75 rounded-lg">
+                  <TabsTrigger 
+                    value="library"
+                    className="data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Search className="w-3.5 h-3.5" />
+                      <span>从命令库选择</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="new"
+                    className="data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>输入新命令</span>
+                    </div>
+                  </TabsTrigger>
+                </TabsList>
+                
+                {/* Tab 内容：从命令库选择 */}
+                <TabsContent value="library" className="mt-2">
+                  <div className="space-y-4">
+                    {/* 搜索框 */}
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <Input
+                        placeholder="搜索命令库..."
+                        value={addDialogSearchQuery}
+                        onChange={(e) => setAddDialogSearchQuery(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    
+                    {/* 命令列表（复选框） */}
+                    <ScrollArea className="h-[200px] pr-4">
+                      <div className="space-y-2 border rounded-lg p-3">
+                        {commands
+                          .filter(cmd =>
+                            cmd.content.toLowerCase().includes(addDialogSearchQuery.toLowerCase()) ||
+                            cmd.description.toLowerCase().includes(addDialogSearchQuery.toLowerCase())
+                          )
+                          .map((cmd) => (
+                            <label key={cmd.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={newPreset.commands.some((c) => c.id === cmd.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setNewPreset({
+                                      ...newPreset,
+                                      commands: [
+                                        ...newPreset.commands,
+                                        { id: cmd.id, content: cmd.content, description: cmd.description, details: cmd.details, order: newPreset.commands.length },
+                                      ],
+                                    });
+                                  } else {
+                                    setNewPreset({
+                                      ...newPreset,
+                                      commands: newPreset.commands.filter((c) => c.id !== cmd.id),
+                                    });
+                                  }
+                                }}
+                                className="mt-1"
+                              />
+                              <div className="flex-1">
+                                <code className="text-sm font-mono">{cmd.content}</code>
+                                {cmd.description && <p className="text-xs text-gray-500 mt-1">{cmd.description}</p>}
+                                {cmd.details && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{cmd.details}</p>}
+                              </div>
+                            </label>
+                          ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </TabsContent>
+                
+                {/* Tab 内容：输入新命令 */}
+                <TabsContent value="new" className="mt-2 space-y-4">
+                  <div>
+                    <Label htmlFor="new-command-content" className="mb-2">命令内容</Label>
+                    <Textarea
+                      id="new-command-content"
+                      placeholder="例如: npm install react"
+                      value={addDialogNewCommand.content}
+                      onChange={(e) => setAddDialogNewCommand({ ...addDialogNewCommand, content: e.target.value })}
+                      className="font-mono min-h-[60px]"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-command-description" className="mb-2">命令说明</Label>
+                    <Input
+                      id="new-command-description"
+                      placeholder="简短描述"
+                      value={addDialogNewCommand.description}
+                      onChange={(e) => setAddDialogNewCommand({ ...addDialogNewCommand, description: e.target.value })}
+                    />
+                  </div>
+                <div className="mb-6">
+                  <Label htmlFor="new-command-details" className="mb-2">命令介绍</Label>
+                  <Textarea
+                    id="new-command-details"
+                    placeholder="详细说明"
+                    value={addDialogNewCommand.details}
+                    onChange={(e) => setAddDialogNewCommand({ ...addDialogNewCommand, details: e.target.value })}
+                    className="min-h-[60px]"
+                  />
+                </div>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (addDialogNewCommand.content.trim()) {
+                        setNewPreset({
+                          ...newPreset,
+                          commands: [
+                            ...newPreset.commands,
+                            { 
+                              id: `${Date.now()}`,
+                              content: addDialogNewCommand.content,
+                              description: addDialogNewCommand.description,
+                              details: addDialogNewCommand.details,
+                              order: newPreset.commands.length 
+                            },
+                          ],
+                        });
+                        setAddDialogNewCommand({ content: '', description: '', details: '' });
+                        toast.success('命令已添加到列表');
+                      } else {
+                        toast.error('命令内容不能为空');
+                      }
+                    }}
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    添加到命令列表
+                  </Button>
+                </TabsContent>
+              </Tabs>
+              
+              {/* 已选择的命令列表 */}
+              {newPreset.commands.length > 0 && (
+                <div className="space-y-2">
+                  <Label>已选择的命令 ({newPreset.commands.length})</Label>
+                  <ScrollArea className="max-h-[120px] pr-4">
+                    <div className="space-y-1 border rounded-lg p-3">
+                      {newPreset.commands.map((cmd, index) => (
+                        <div key={cmd.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
+                          <span className="text-xs text-gray-500 mt-1">{index + 1}.</span>
+                          <div className="flex-1 min-w-0">
+                            <code className="text-sm font-mono block">{cmd.content}</code>
+                            {cmd.description && <p className="text-xs text-gray-600 mt-1">{cmd.description}</p>}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewPreset({
+                                ...newPreset,
+                                commands: newPreset.commands.filter((c) => c.id !== cmd.id),
+                              });
+                            }}
+                            className="p-1 hover:bg-red-100 rounded"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+          
+          <DialogFooter className="flex-shrink-0 px-6 pb-6">
+            <Button variant="outline" onClick={() => {
+              setShowAddDialog(false);
+              setAddDialogSearchQuery('');
+              setAddDialogSelectedCommand(null);
+              setAddDialogNewCommand({ content: '', description: '', details: '' });
+            }}>
               取消
             </Button>
-            <Button onClick={handleAddPreset}>添加</Button>
+            <Button onClick={() => {
+              if (newPreset.name.trim() && newPreset.commands.length > 0) {
+                handleAddPreset();
+              } else if (!newPreset.name.trim()) {
+                toast.error('预设名称不能为空');
+              } else if (newPreset.commands.length === 0) {
+                toast.error('请至少添加一个命令');
+              }
+            }}>
+              添加
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>编辑预设</DialogTitle>
           </DialogHeader>
           {editingPreset && (
-            <div className="space-y-6 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">预设名称</Label>
-                <Input
-                  id="edit-name"
-                  value={editingPreset.name}
-                  onChange={(e) => setEditingPreset(prev => prev ? { ...prev, name: e.target.value } : null)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-description">描述</Label>
-                <Textarea
-                  id="edit-description"
-                  value={editingPreset.description || ""}
-                  onChange={(e) => setEditingPreset(prev => prev ? { ...prev, description: e.target.value } : null)}
-                />
-              </div>
-               <div className="space-y-2">
-                 <Label>选择命令</Label>
-                 <div className="mt-2 space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
-                   {commands.map((cmd) => (
-                     <label key={cmd.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={editingPreset.commands.some((c) => c.id === cmd.id)}
-                          onChange={(e) => {
+            <>
+              <div className="flex-1 overflow-y-auto px-6">
+                <div className="space-y-4 py-3">
+                <div className="space-y-2 mb-3">
+                  <Label htmlFor="edit-name" className="mb-2">预设名称</Label>
+                  <Input
+                    id="edit-name"
+                    value={editingPreset.name}
+                    onChange={(e) => setEditingPreset(prev => prev ? { ...prev, name: e.target.value } : null)}
+                  />
+                </div>
+               <div className="space-y-2 mb-3">
+                 <Label htmlFor="description" className="mb-2">描述（可选）</Label>
+                 <Textarea
+                   id="description"
+                   value={newPreset.description}
+                   onChange={(e) => setNewPreset({ ...newPreset, description: e.target.value })}
+                   placeholder="简要描述这个预设的用途"
+                 />
+               </div>
+                  
+                  {/* Tab 切换：选择命令 */}
+                  <Tabs defaultValue="library" className="w-full">
+                    {/* Tab 切换器 */}
+                    <TabsList className="grid w-full grid-cols-2 h-10 bg-gray-100 p-0.75 rounded-lg">
+                      <TabsTrigger 
+                        value="library"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Search className="w-3.5 h-3.5" />
+                          <span>从命令库选择</span>
+                        </div>
+                      </TabsTrigger>
+                      <TabsTrigger 
+                        value="new"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>输入新命令</span>
+                        </div>
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                     {/* Tab 内容：从命令库选择 */}
+                    <TabsContent value="library" className="mt-3">
+                      <div className="space-y-4">
+                        {/* 搜索框 */}
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                          <Input
+                            placeholder="搜索命令库..."
+                            value={editDialogSearchQuery}
+                            onChange={(e) => setEditDialogSearchQuery(e.target.value)}
+                            className="pl-9"
+                          />
+                        </div>
+                        
+                        {/* 命令列表（复选框） */}
+                        <ScrollArea className="h-[200px] pr-4">
+                          <div className="space-y-2 border rounded-lg p-3">
+                            {commands
+                              .filter(cmd =>
+                                cmd.content.toLowerCase().includes(editDialogSearchQuery.toLowerCase()) ||
+                                cmd.description.toLowerCase().includes(editDialogSearchQuery.toLowerCase())
+                              )
+                              .map((cmd) => (
+                                <label key={cmd.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={editingPreset.commands.some((c) => c.id === cmd.id)}
+                                    onChange={(e) => {
+                                      setEditingPreset(prev => {
+                                        if (!prev) return prev;
+                                        
+                                        if (e.target.checked) {
+                                          return {
+                                            ...prev,
+                                            commands: [
+                                              ...prev.commands,
+                                              { id: cmd.id, content: cmd.content, description: cmd.description, details: cmd.details, order: prev.commands.length },
+                                            ],
+                                          };
+                                        } else {
+                                          return {
+                                            ...prev,
+                                            commands: prev.commands.filter((c) => c.id !== cmd.id),
+                                          };
+                                        }
+                                      });
+                                    }}
+                                    className="mt-1"
+                                  />
+                                  <div className="flex-1">
+                                    <code className="text-sm font-mono">{cmd.content}</code>
+                                    {cmd.description && <p className="text-xs text-gray-500 mt-1">{cmd.description}</p>}
+                                    {cmd.details && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{cmd.details}</p>}
+                                  </div>
+                                </label>
+                              ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    </TabsContent>
+                    
+                     {/* Tab 内容：输入新命令 */}
+                    <TabsContent value="new" className="mt-2 space-y-4">
+                      <div>
+                        <Label htmlFor="edit-new-command-content" className="mb-2">命令内容</Label>
+                        <Textarea
+                          id="edit-new-command-content"
+                          placeholder="例如: npm install react"
+                          value={editDialogNewCommand.content}
+                          onChange={(e) => setEditDialogNewCommand({ ...editDialogNewCommand, content: e.target.value })}
+                          className="font-mono min-h-[60px]"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-new-command-description" className="mb-2">命令说明</Label>
+                        <Input
+                          id="edit-new-command-description"
+                          placeholder="简短描述"
+                          value={editDialogNewCommand.description}
+                          onChange={(e) => setEditDialogNewCommand({ ...editDialogNewCommand, description: e.target.value })}
+                        />
+                      </div>
+                      <div className="mb-6">
+                        <Label htmlFor="edit-new-command-details" className="mb-2">命令介绍</Label>
+                        <Textarea
+                          id="edit-new-command-details"
+                          placeholder="详细说明"
+                          value={editDialogNewCommand.details}
+                          onChange={(e) => setEditDialogNewCommand({ ...editDialogNewCommand, details: e.target.value })}
+                          className="min-h-[60px]"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          if (editDialogNewCommand.content.trim()) {
                             setEditingPreset(prev => {
                               if (!prev) return prev;
-
-                              if (e.target.checked) {
-                                return {
-                                  ...prev,
-                                  commands: [
-                                    ...prev.commands,
-                                    { id: cmd.id, content: cmd.content, description: cmd.description, details: cmd.details, order: prev.commands.length },
-                                  ],
-                                };
-                              } else {
-                                return {
-                                  ...prev,
-                                  commands: prev.commands.filter((c) => c.id !== cmd.id),
-                                };
-                              }
+                              return {
+                                ...prev,
+                                commands: [
+                                  ...prev.commands,
+                                  { 
+                                    id: `${Date.now()}`,
+                                    content: editDialogNewCommand.content,
+                                    description: editDialogNewCommand.description,
+                                    details: editDialogNewCommand.details,
+                                    order: prev.commands.length 
+                                  },
+                                ],
+                              };
                             });
+                            setEditDialogNewCommand({ content: '', description: '', details: '' });
+                            toast.success('命令已添加到列表');
+                          } else {
+                            toast.error('命令内容不能为空');
+                          }
+                        }}
+                      >
+                        <Plus className="w-3.5 h-3.5 mr-1.5" />
+                        添加到命令列表
+                      </Button>
+                    </TabsContent>
+                  </Tabs>
+                  
+                  {/* 已选择的命令列表 */}
+                  {editingPreset.commands.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label>已选择的命令 ({editingPreset.commands.length})</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm('确定要移除所有命令吗？')) {
+                              setEditingPreset(prev => prev ? { ...prev, commands: [] } : null);
+                            }
                           }}
-                          className="mt-1"
-                        />
-                       <div className="flex-1">
-                         <code className="text-sm font-mono">{cmd.content}</code>
-                         {cmd.description && <p className="text-xs text-gray-500 mt-1">{cmd.description}</p>}
-                       </div>
-                     </label>
-                   ))}
-                 </div>
-               </div>
-             </div>
+                        >
+                          清空所有
+                        </Button>
+                      </div>
+                      <ScrollArea className="max-h-[120px] pr-4">
+                        <div className="space-y-1 border rounded-lg p-3">
+                          {editingPreset.commands.map((cmd, index) => (
+                            <div key={cmd.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
+                              <span className="text-xs text-gray-500 mt-1">{index + 1}.</span>
+                              <div className="flex-1 min-w-0">
+                                <code className="text-sm font-mono block">{cmd.content}</code>
+                                {cmd.description && <p className="text-xs text-gray-600 mt-1">{cmd.description}</p>}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newCommands = [...editingPreset.commands];
+                                    const [removed] = newCommands.splice(index, 1);
+                                    if (index > 0) {
+                                      newCommands[index - 1].order = index - 1;
+                                    }
+                                    newCommands.forEach((c, idx) => c.order = idx);
+                                    setEditingPreset(prev => prev ? { ...prev, commands: newCommands } : null);
+                                  }}
+                                  disabled={index === 0}
+                                  className="p-1 hover:bg-gray-100 rounded disabled:opacity-30"
+                                  title="上移"
+                                >
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newCommands = [...editingPreset.commands];
+                                    const [removed] = newCommands.splice(index, 1);
+                                    if (index < newCommands.length) {
+                                      newCommands.forEach((c, idx) => c.order = idx);
+                                    }
+                                    setEditingPreset(prev => prev ? { ...prev, commands: newCommands } : null);
+                                  }}
+                                  disabled={index === editingPreset.commands.length - 1}
+                                  className="p-1 hover:bg-gray-100 rounded disabled:opacity-30"
+                                  title="下移"
+                                >
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingPreset(prev => prev ? {
+                                      ...prev,
+                                      commands: prev.commands.filter((c) => c.id !== cmd.id),
+                                    } : null);
+                                  }}
+                                  className="p-1 hover:bg-red-100 rounded"
+                                  title="删除"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+          <DialogFooter className="flex-shrink-0 px-6 pb-6">
+            <Button variant="outline" onClick={() => {
+              setShowEditDialog(false);
+              setEditDialogSearchQuery('');
+              setEditDialogSelectedCommand(null);
+              setEditDialogNewCommand({ content: '', description: '', details: '' });
+            }}>
               取消
             </Button>
-            <Button onClick={handleEditPreset}>保存</Button>
+            <Button onClick={() => {
+              if (editingPreset?.name.trim() && editingPreset.commands.length > 0) {
+                handleEditPreset();
+              } else if (!editingPreset?.name.trim()) {
+                toast.error('预设名称不能为空');
+              } else if (editingPreset.commands.length === 0) {
+                toast.error('请至少添加一个命令');
+              }
+            }}>
+              保存
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
