@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router";
 import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "./ui/button";
@@ -90,10 +90,41 @@ export default function CommandPresets() {
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const handleScrollRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     fetchPresets();
   }, [fetchPresets]);
+  
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+    const handleScroll = () => {
+      scrollContainer.classList.add("scrolling");
+      
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      scrollTimeoutRef.current = setTimeout(() => {
+        scrollContainer.classList.remove("scrolling");
+      }, 1000);
+    };
+    handleScrollRef.current = handleScroll;
+    scrollContainer.addEventListener("scroll", handleScroll);
+    return () => {
+      const scrollContainer = scrollContainerRef.current;
+      const handleScroll = handleScrollRef.current;
+      if (scrollContainer && handleScroll) {
+        scrollContainer.removeEventListener("scroll", handleScroll);
+      }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const state = location.state as { newPresetName?: string } | null;
@@ -325,7 +356,7 @@ export default function CommandPresets() {
   };
 
   return (
-    <div className="h-full bg-gray-50">
+    <div className="h-full flex flex-col bg-gray-50">
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -386,10 +417,10 @@ export default function CommandPresets() {
         </div>
       </div>
 
-      <div className="p-6" onContextMenu={() => console.log('p-6 context menu')}>
+      <div className="flex-1 overflow-auto p-6 custom-scrollbar" ref={scrollContainerRef} onContextMenu={() => console.log('p-6 context menu')}>
         <ContextMenu>
           <ContextMenuTrigger asChild>
-            <div className="min-h-[500px]" onContextMenu={() => console.log('min-h-[500px] context menu')}>
+            <div>
               {loading ? (
                 <div className="flex items-center justify-center h-64">
                   <div className="text-gray-500">加载中...</div>
@@ -415,7 +446,6 @@ export default function CommandPresets() {
                              draggable={useDefaultSort}
                              className={`bg-white rounded-lg border relative transition-all duration-200
                                ${isDragging && draggingId === preset.id ? 'opacity-50 border-dashed border-gray-300' : 'border-gray-200 hover:shadow-md'}
-                               ${useDefaultSort ? 'cursor-move' : ''}
                                ${dragOverId === preset.id && dropPosition === 'before' ? 'border-l-[6px] border-l-blue-500 pl-1' : ''}
                                ${dragOverId === preset.id && dropPosition === 'after' ? 'border-r-[6px] border-r-blue-500 pr-1' : ''}
                              `}
