@@ -48,3 +48,17 @@ body {
   background-color: rgba(156, 163, 175, 0.5);
   opacity: 1;
 }
+
+/* Shimmer 动画 */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}

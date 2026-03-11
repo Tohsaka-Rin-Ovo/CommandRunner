@@ -253,12 +253,16 @@ export default function Root() {
                   .map((preset) => (
                   <Link
                     key={preset.id}
-                    to="/presets"
-                    className={`block px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg relative transition-all duration-200
+                    to={`/presets/${preset.id}`}
+                    className={`
+                      block px-4 py-2 text-sm rounded-lg transition-all duration-200
+                      ${location.pathname === `/presets/${preset.id}`
+                        ? 'bg-blue-50 text-blue-700 font-medium'  // 选中状态：蓝色背景 + 蓝色文字 + 加粗
+                        : 'text-gray-600 hover:bg-gray-100'       // 默认状态：灰色文字 + hover 背景
+                      }
                       ${draggingId === preset.id ? 'opacity-50 border border-dashed border-gray-300' : ''}
                       ${dragOverId === preset.id && dropPosition === 'before' ? 'border-t-2 border-t-blue-500 mt-1' : ''}
                       ${dragOverId === preset.id && dropPosition === 'after' ? 'border-b-2 border-b-blue-500 mb-1' : ''}
-                      
                     `}
                     draggable={useDefaultSort}
                     onDragStart={(e) => handleDragStart(e, preset.id)}
