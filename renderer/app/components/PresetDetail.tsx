@@ -54,7 +54,7 @@ export default function PresetDetail() {
   const preset = presets.find(p => p.id === presetId)
   const activePreset = activePresets.get(presetId || '')
   const presetHistory = history.filter(h => h.presetId === presetId)
-  
+
   // 对话框状态
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -62,6 +62,8 @@ export default function PresetDetail() {
   const [showEditCommandDialog, setShowEditCommandDialog] = useState(false)
   const [showExecuteConfirmDialog, setShowExecuteConfirmDialog] = useState(false)
   const [showFullOutputDialog, setShowFullOutputDialog] = useState(false)
+  const [showFailedConfirmDialog, setShowFailedConfirmDialog] = useState(false)
+  const [showStoppedConfirmDialog, setShowStoppedConfirmDialog] = useState(false)
   
   // 表单状态
   const [editForm, setEditForm] = useState({ name: '', description: '' })
@@ -301,7 +303,7 @@ export default function PresetDetail() {
     try {
       startPreset(presetId, commandIds)
       await window.electronAPI.executePreset(presetId, commandIds)
-      toast.success('开始执行预设')
+      toast.success('开始执行预设', { duration: 1250 })
     } catch (error) {
       toast.error('执行预设失败')
     }
@@ -322,7 +324,7 @@ export default function PresetDetail() {
     try {
       startPreset(presetId, commandIds)
       await window.electronAPI.executePreset(presetId, commandIds)
-      toast.success('开始重新执行预设')
+      toast.success('开始重新执行预设', { duration: 1250 })
     } catch (error) {
       toast.error('执行预设失败')
     }
@@ -548,7 +550,7 @@ export default function PresetDetail() {
             {activePreset?.overallStatus === 'running' ? (
               <Button
                 size="lg"
-                className="bg-green-600 hover:bg-green-600 text-white h-12 cursor-wait"
+                className="bg-green-500 hover:bg-green-500 text-white h-12 cursor-wait"
                 disabled={true}
               >
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -557,19 +559,37 @@ export default function PresetDetail() {
             ) : activePreset?.overallStatus === 'completed' ? (
               <Button
                 size="lg"
-                className="bg-gray-900 hover:bg-gray-800 text-white h-12"
-                onClick={() => {
-                  handleReExecutePreset()
-                }}
+                className="bg-green-500 hover:bg-green-600 text-white h-12"
+                onClick={handleReExecutePreset}
                 disabled={preset.commands.length === 0}
               >
                 <Play className="w-5 h-5 mr-2" />
                 执行完成
               </Button>
+            ) : activePreset?.overallStatus === 'failed' ? (
+              <Button
+                size="lg"
+                className="bg-red-600 hover:bg-red-700 text-white h-12"
+                onClick={() => setShowFailedConfirmDialog(true)}
+                disabled={preset.commands.length === 0}
+              >
+                <AlertCircle className="w-5 h-5 mr-2" />
+                执行失败
+              </Button>
+            ) : activePreset?.overallStatus === 'stopped' ? (
+              <Button
+                size="lg"
+                className="bg-yellow-500 hover:bg-yellow-600 text-white h-12"
+                onClick={() => setShowStoppedConfirmDialog(true)}
+                disabled={preset.commands.length === 0}
+              >
+                <AlertCircle className="w-5 h-5 mr-2" />
+                执行中断
+              </Button>
             ) : (
               <Button
                 size="lg"
-                className="bg-gray-900 hover:bg-gray-800 text-white h-12"
+                className="bg-green-500 hover:bg-green-600 text-white h-12"
                 onClick={() => {
                   if (settings.confirmBeforeExecute && !activePreset) {
                     setShowExecuteConfirmDialog(true)
@@ -613,7 +633,7 @@ export default function PresetDetail() {
                     activePreset.overallStatus === 'completed' ? '[&>[role=progressbar]]:bg-green-500' :
                     activePreset.overallStatus === 'failed' ? '[&>[role=progressbar]]:bg-red-500' :
                     activePreset.overallStatus === 'stopped' ? '[&>[role=progressbar]]:bg-yellow-500' :
-                    '[&>[role=progressbar]]:bg-blue-500'
+                    ''
                   }`} 
                 />
                 <span className="text-sm text-gray-600 whitespace-nowrap">
@@ -1247,6 +1267,80 @@ export default function PresetDetail() {
             }}>
               <Play className="w-4 h-4 mr-2" />
               确认执行
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 执行失败确认对话框 */}
+      <Dialog open={showFailedConfirmDialog} onOpenChange={setShowFailedConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认重新执行？</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600 mb-4">
+              上次执行在第 {activePreset?.currentIndex} 条命令时失败了。是否要重新执行所有命令？
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-900 mb-1">执行失败提示</p>
+                  <p className="text-xs text-red-700">
+                    请检查命令配置后再执行，避免再次失败。
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFailedConfirmDialog(false)}>
+              取消
+            </Button>
+            <Button onClick={() => {
+              setShowFailedConfirmDialog(false)
+              handleReExecutePreset()
+            }}>
+              <Play className="w-4 h-4 mr-2" />
+              重新执行
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 执行中断确认对话框 */}
+      <Dialog open={showStoppedConfirmDialog} onOpenChange={setShowStoppedConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认重新执行？</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600 mb-4">
+              上次执行在第 {activePreset?.currentIndex} 条命令时被中断。是否要重新执行所有命令？
+            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-900 mb-1">执行中断提示</p>
+                  <p className="text-xs text-yellow-700">
+                    执行被手动中断，后续命令未执行。可以继续执行或重新开始。
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStoppedConfirmDialog(false)}>
+              取消
+            </Button>
+            <Button onClick={() => {
+              setShowStoppedConfirmDialog(false)
+              handleReExecutePreset()
+            }}>
+              <Play className="w-4 h-4 mr-2" />
+              重新执行
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -64,8 +64,17 @@ export class CommandExecutor {
     this.presetQueues.set(presetId, commands)
     this.presetStopRequested.set(presetId, false)
 
+    let allCommandsCompleted = true
+
     for (let i = 0; i < commands.length; i++) {
       if (this.presetStopRequested.get(presetId)) {
+        allCommandsCompleted = false
+        this.sendPresetProgress(presetId, {
+          currentIndex: i + 1,
+          total: commands.length,
+          commandId: null,
+          commandStatus: 'stopped'
+        })
         break
       }
 
@@ -93,31 +102,40 @@ export class CommandExecutor {
       })
 
       if (this.presetStopRequested.get(presetId)) {
-        break
-      }
-
-      // Check command status and send it
-      const commandStatus = this.commandStatuses.get(commandId)
-      if (commandStatus === 'failed' || commandStatus === 'stopped') {
+        allCommandsCompleted = false
         this.sendPresetProgress(presetId, {
           currentIndex: i + 1,
           total: commands.length,
           commandId: null,
-          commandStatus
+          commandStatus: 'stopped'
         })
+        break
+      }
+
+      const commandStatus = this.commandStatuses.get(commandId)
+      if (commandStatus === 'failed') {
+        allCommandsCompleted = false
+        this.sendPresetProgress(presetId, {
+          currentIndex: i + 1,
+          total: commands.length,
+          commandId: null,
+          commandStatus: 'failed'
+        })
+        break
       }
     }
 
-    this.sendPresetProgress(presetId, {
-      currentIndex: commands.length,
-      total: commands.length,
-      commandId: null,
-      completed: true
-    })
+    if (allCommandsCompleted) {
+      this.sendPresetProgress(presetId, {
+        currentIndex: commands.length,
+        total: commands.length,
+        commandId: null,
+        completed: true
+      })
+    }
 
     this.presetQueues.delete(presetId)
     this.presetStopRequested.delete(presetId)
-    // Clear command statuses for this preset
     for (let i = 0; i < commands.length; i++) {
       const commandId = `${presetId}-${i}`
       this.commandStatuses.delete(commandId)
@@ -161,7 +179,7 @@ export class CommandExecutor {
   }): void {
     const status: 'success' | 'failed' = result.success ? 'success' : 'failed'
     this.commandStatuses.set(commandId, status)
-    
+
     mainWindow?.webContents.send('command-complete', {
       commandId,
       ...result

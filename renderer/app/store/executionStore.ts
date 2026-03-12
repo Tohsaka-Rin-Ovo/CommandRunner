@@ -104,18 +104,16 @@ export const useExecutionStore = create<ExecutionStore>((set, _get) => ({
       if (preset) {
         preset.currentIndex = progress.currentIndex
         preset.total = progress.total
-        
-        // Update failure count and overall status based on command status
+
         if (progress.commandStatus === 'failed') {
           preset.failureCount += 1
           preset.overallStatus = 'failed'
         } else if (progress.commandStatus === 'stopped') {
           preset.overallStatus = 'stopped'
         }
-        
+
         if (progress.completed) {
           preset.completed = true
-          // Set final overall status based on failure count
           if (preset.failureCount === 0) {
             preset.overallStatus = 'completed'
           } else {
