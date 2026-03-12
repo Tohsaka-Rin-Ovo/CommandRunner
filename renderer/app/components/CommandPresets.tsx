@@ -47,6 +47,7 @@ import { usePresetStore } from "../store/presetStore";
 import { useExecutionStore } from "../store/executionStore";
 import { useCommandStore } from "../store/commandStore";
 import type { Preset } from "@shared/types";
+import { SelectedCommandsFloating } from "./SelectedCommandsFloating";
 
 const PRESET_ICONS = {
   database: Database,
@@ -698,7 +699,10 @@ export default function CommandPresets() {
        </div>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
+        <DialogContent 
+          className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>添加预设</DialogTitle>
           </DialogHeader>
@@ -866,37 +870,7 @@ export default function CommandPresets() {
                 </TabsContent>
               </Tabs>
               
-              {/* 已选择的命令列表 */}
-              {newPreset.commands.length > 0 && (
-                <div className="space-y-2">
-                  <Label>已选择的命令 ({newPreset.commands.length})</Label>
-                  <ScrollArea className="max-h-[120px] pr-4">
-                    <div className="space-y-1 border rounded-lg p-3">
-                      {newPreset.commands.map((cmd, index) => (
-                        <div key={cmd.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
-                          <span className="text-xs text-gray-500 mt-1">{index + 1}.</span>
-                          <div className="flex-1 min-w-0">
-                            <code className="text-sm font-mono block">{cmd.content}</code>
-                            {cmd.description && <p className="text-xs text-gray-600 mt-1">{cmd.description}</p>}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setNewPreset({
-                                ...newPreset,
-                                commands: newPreset.commands.filter((c) => c.id !== cmd.id),
-                              });
-                            }}
-                            className="p-1 hover:bg-red-100 rounded"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-              )}
+              {/* Selected commands moved to floating popup */}
             </div>
           </div>
           
@@ -910,12 +884,10 @@ export default function CommandPresets() {
               取消
             </Button>
             <Button onClick={() => {
-              if (newPreset.name.trim() && newPreset.commands.length > 0) {
+              if (newPreset.name.trim()) {
                 handleAddPreset();
               } else if (!newPreset.name.trim()) {
                 toast.error('预设名称不能为空');
-              } else if (newPreset.commands.length === 0) {
-                toast.error('请至少添加一个命令');
               }
             }}>
               添加
@@ -925,7 +897,10 @@ export default function CommandPresets() {
       </Dialog>
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
+        <DialogContent 
+          className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>编辑预设</DialogTitle>
           </DialogHeader>
@@ -939,6 +914,15 @@ export default function CommandPresets() {
                     id="edit-name"
                     value={editingPreset.name}
                     onChange={(e) => setEditingPreset(prev => prev ? { ...prev, name: e.target.value } : null)}
+                    autoFocus={false}
+                    onFocus={(e) => {
+                      // Prevent auto-selection and move cursor to end
+                      const input = e.target;
+                      // Use setTimeout to ensure this runs after any default focus/select behavior
+                      setTimeout(() => {
+                        input.setSelectionRange(input.value.length, input.value.length);
+                      }, 0);
+                    }}
                   />
                 </div>
                <div className="space-y-2 mb-3">
@@ -1100,86 +1084,7 @@ export default function CommandPresets() {
                     </TabsContent>
                   </Tabs>
                   
-                  {/* 已选择的命令列表 */}
-                  {editingPreset.commands.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label>已选择的命令 ({editingPreset.commands.length})</Label>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            if (confirm('确定要移除所有命令吗？')) {
-                              setEditingPreset(prev => prev ? { ...prev, commands: [] } : null);
-                            }
-                          }}
-                        >
-                          清空所有
-                        </Button>
-                      </div>
-                      <ScrollArea className="max-h-[120px] pr-4">
-                        <div className="space-y-1 border rounded-lg p-3">
-                          {editingPreset.commands.map((cmd, index) => (
-                            <div key={cmd.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
-                              <span className="text-xs text-gray-500 mt-1">{index + 1}.</span>
-                              <div className="flex-1 min-w-0">
-                                <code className="text-sm font-mono block">{cmd.content}</code>
-                                {cmd.description && <p className="text-xs text-gray-600 mt-1">{cmd.description}</p>}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const newCommands = [...editingPreset.commands];
-                                    const [removed] = newCommands.splice(index, 1);
-                                    if (index > 0) {
-                                      newCommands[index - 1].order = index - 1;
-                                    }
-                                    newCommands.forEach((c, idx) => c.order = idx);
-                                    setEditingPreset(prev => prev ? { ...prev, commands: newCommands } : null);
-                                  }}
-                                  disabled={index === 0}
-                                  className="p-1 hover:bg-gray-100 rounded disabled:opacity-30"
-                                  title="上移"
-                                >
-                                  <ArrowUp className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const newCommands = [...editingPreset.commands];
-                                    const [removed] = newCommands.splice(index, 1);
-                                    if (index < newCommands.length) {
-                                      newCommands.forEach((c, idx) => c.order = idx);
-                                    }
-                                    setEditingPreset(prev => prev ? { ...prev, commands: newCommands } : null);
-                                  }}
-                                  disabled={index === editingPreset.commands.length - 1}
-                                  className="p-1 hover:bg-gray-100 rounded disabled:opacity-30"
-                                  title="下移"
-                                >
-                                  <ArrowDown className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingPreset(prev => prev ? {
-                                      ...prev,
-                                      commands: prev.commands.filter((c) => c.id !== cmd.id),
-                                    } : null);
-                                  }}
-                                  className="p-1 hover:bg-red-100 rounded"
-                                  title="删除"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  )}
+                  {/* Selected commands moved to floating popup */}
                 </div>
               </div>
             </>
@@ -1194,12 +1099,10 @@ export default function CommandPresets() {
               取消
             </Button>
             <Button onClick={() => {
-              if (editingPreset?.name.trim() && editingPreset.commands.length > 0) {
+              if (editingPreset?.name.trim()) {
                 handleEditPreset();
               } else if (!editingPreset?.name.trim()) {
                 toast.error('预设名称不能为空');
-              } else if (editingPreset.commands.length === 0) {
-                toast.error('请至少添加一个命令');
               }
             }}>
               保存
@@ -1224,6 +1127,62 @@ export default function CommandPresets() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SelectedCommandsFloating 
+        visible={showAddDialog}
+        commands={newPreset.commands}
+        onRemove={(id) => setNewPreset({ ...newPreset, commands: newPreset.commands.filter(c => c.id !== id) })}
+        onClear={() => setNewPreset({ ...newPreset, commands: [] })}
+        onMoveUp={(index) => {
+           const newCommands = [...newPreset.commands];
+           if (index > 0) {
+              const temp = newCommands[index];
+              newCommands[index] = newCommands[index - 1];
+              newCommands[index - 1] = temp;
+              newCommands.forEach((c, idx) => c.order = idx);
+              setNewPreset({ ...newPreset, commands: newCommands });
+           }
+         }}
+         onMoveDown={(index) => {
+           const newCommands = [...newPreset.commands];
+           if (index < newCommands.length - 1) {
+              const temp = newCommands[index];
+              newCommands[index] = newCommands[index + 1];
+              newCommands[index + 1] = temp;
+              newCommands.forEach((c, idx) => c.order = idx);
+              setNewPreset({ ...newPreset, commands: newCommands });
+           }
+         }}
+      />
+
+      <SelectedCommandsFloating 
+        visible={showEditDialog && !!editingPreset}
+        commands={editingPreset?.commands || []}
+        onRemove={(id) => setEditingPreset(prev => prev ? { ...prev, commands: prev.commands.filter(c => c.id !== id) } : null)}
+        onClear={() => setEditingPreset(prev => prev ? { ...prev, commands: [] } : null)}
+        onMoveUp={(index) => {
+          if (!editingPreset) return;
+          const newCommands = [...editingPreset.commands];
+          if (index > 0) {
+             const temp = newCommands[index];
+             newCommands[index] = newCommands[index - 1];
+             newCommands[index - 1] = temp;
+             newCommands.forEach((c, idx) => c.order = idx);
+             setEditingPreset({ ...editingPreset, commands: newCommands });
+          }
+        }}
+        onMoveDown={(index) => {
+          if (!editingPreset) return;
+          const newCommands = [...editingPreset.commands];
+          if (index < newCommands.length - 1) {
+             const temp = newCommands[index];
+             newCommands[index] = newCommands[index + 1];
+             newCommands[index + 1] = temp;
+             newCommands.forEach((c, idx) => c.order = idx);
+             setEditingPreset({ ...editingPreset, commands: newCommands });
+          }
+        }}
+      />
     </div>
   );
 }
