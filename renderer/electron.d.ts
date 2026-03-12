@@ -26,6 +26,13 @@ export interface ElectronAPI {
   stopCommand: (commandId: string) => Promise<void>
   stopPreset: (presetId: string) => Promise<void>
 
+  // Settings
+  getGlobalSettings: () => Promise<{
+    stopOnError: boolean
+    showFullOutput: boolean
+    confirmBeforeExecute: boolean
+  }>
+
   // Events
   onCommandOutput: (callback: (data: { commandId: string, line: string, type: 'stdout' | 'stderr' }) => void) => () => void
   onCommandComplete: (callback: (data: { commandId: string, success: boolean, code: number | null, output: string, duration: number }) => void) => () => void

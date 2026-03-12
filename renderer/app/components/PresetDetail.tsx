@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
-import { Database, Play, Pause, ChevronLeft, Edit, Trash2, Plus, RotateCcw, CheckCircle, XCircle, AlertCircle, ArrowUp, ArrowDown, Search, Clock, ChevronDown as ChevronDownIcon, ChevronRight as ChevronRightIcon, Save } from 'lucide-react'
+import { Database, Play, Pause, ChevronLeft, Edit, Trash2, Plus, RotateCcw, CheckCircle, XCircle, AlertCircle, ArrowUp, ArrowDown, Search, Clock, ChevronDown as ChevronDownIcon, ChevronRight as ChevronRightIcon, Save, RefreshCw, Loader2 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
@@ -29,6 +29,8 @@ import { useCommandStore } from '../store/commandStore'
 import { FullOutputDialog } from './FullOutputDialog'
 import type { Preset, PresetCommand } from '@shared/types'
 import type { Command as CommandType, History } from '@shared/types'
+import { TerminalOutput } from "./TerminalOutput";
+import { handleInputFocus } from '../utils/focusUtils'
 
 export default function PresetDetail() {
   // 路由和导航
@@ -307,12 +309,22 @@ export default function PresetDetail() {
   // 停止执行
   const handleStopPreset = async () => {
     if (!presetId) return
+    if (preset?.commands.length === 0) {
+      toast.error('当前预设不存在命令，请添加预设')
+      return
+    }
     try {
       stopPreset(presetId)
-      toast.success('已停止执行')
+      toast.success('已结束执行')
     } catch (error) {
       toast.error('停止执行失败')
     }
+  }
+
+  // 刷新页面
+  const handleRefresh = () => {
+    navigate(0);
+    toast.success('当前预设详情页已刷新');
   }
   
   // 重置执行
@@ -514,12 +526,11 @@ export default function PresetDetail() {
             {activePreset && !activePreset.completed ? (
               <Button
                 size="lg"
-                variant="destructive"
-                className="h-12"
-                onClick={handleStopPreset}
+                className="bg-green-600 hover:bg-green-600 text-white h-12 cursor-wait"
+                disabled={true}
               >
-                <Pause className="w-5 h-5 mr-2" />
-                停止执行
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                执行中
               </Button>
             ) : (
               <Button
@@ -538,16 +549,26 @@ export default function PresetDetail() {
                 执行所有命令
               </Button>
             )}
+
+            <Button
+              size="lg"
+              variant={activePreset && !activePreset.completed ? "destructive" : "outline"}
+              className={`h-12 ${!(activePreset && !activePreset.completed) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={handleStopPreset}
+              disabled={!(activePreset && !activePreset.completed)}
+            >
+              <Pause className="w-5 h-5 mr-2" />
+              结束执行
+            </Button>
             
             <Button
               variant="outline"
               size="lg"
-              onClick={handleResetExecution}
-              disabled={activePreset?.completed === false}
+              onClick={handleRefresh}
               className="h-12"
             >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              重置
+              <RefreshCw className="w-4 h-4 mr-2" />
+              刷新
             </Button>
 
             {activePreset && activePreset.total > 0 && (
@@ -726,17 +747,44 @@ export default function PresetDetail() {
                             {/* 命令执行输出 */}
                             {getCommandExecution(command.id) && (
                               <div className="px-4 pb-4">
-                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-gray-700">执行输出</span>
-                                    <span className="text-xs text-gray-500">
-                                      耗时: {getCommandExecution(command.id)?.duration}ms
-                                    </span>
-                                  </div>
-                                  <pre className="text-xs font-mono text-gray-600 bg-white p-3 rounded overflow-x-auto">
-                                    {getCommandExecution(command.id)?.output || '暂无输出'}
-                                  </pre>
-                                </div>
+                                <TerminalOutput
+                                  output={getCommandExecution(command.id)!.output}
+                                  outputLines={getCommandExecution(command.id)!.outputLines}
+                                  displayLines={getCommandExecution(command.id)!.displayLines}
+                                  showFull={getCommandExecution(command.id)!.showFull}
+                                  status={getCommandExecution(command.id)!.status}
+                                  duration={getCommandExecution(command.id)!.duration}
+                                  command={getCommandExecution(command.id)!.command}
+                                  onCopy={() => {}}
+                                  onSave={() => {}}
+                                  onClear={() => {}}
+                                  onClose={() => {
+                                    const newExpanded = new Set(expandedCommands);
+                                    newExpanded.delete(command.id);
+                                    setExpandedCommands(newExpanded);
+                                  }}
+                                  onToggleFull={() => {
+                                    // Handle full output toggle if needed
+                                    // This might need updates to execution store to support per-command toggle in presets
+                                    // For now, we can show the full output dialog as a fallback
+                                    setFullOutputData({
+                                      presetName: preset.name,
+                                      executionTime: Date.now(), // Approximate
+                                      status: getCommandExecution(command.id)!.status as 'success' | 'failed' | 'stopped',
+                                      duration: getCommandExecution(command.id)!.duration,
+                                      commands: preset.commands,
+                                      output: getCommandExecution(command.id)!.output,
+                                      commandResults: [{
+                                        commandId: command.id,
+                                        command: command.content,
+                                        status: getCommandExecution(command.id)!.status as 'success' | 'failed' | 'stopped',
+                                        output: getCommandExecution(command.id)!.output,
+                                        duration: getCommandExecution(command.id)!.duration
+                                      }]
+                                    })
+                                    setShowFullOutputDialog(true)
+                                  }}
+                                />
                               </div>
                             )}
                           </div>
@@ -975,6 +1023,7 @@ export default function PresetDetail() {
                   value={newCommand.content}
                   onChange={(e) => setNewCommand({ ...newCommand, content: e.target.value })}
                   className="font-mono min-h-[100px]"
+                  onFocus={handleInputFocus}
                 />
               </div>
               <div>
@@ -984,6 +1033,7 @@ export default function PresetDetail() {
                   placeholder="简短描述"
                   value={newCommand.description}
                   onChange={(e) => setNewCommand({ ...newCommand, description: e.target.value })}
+                  onFocus={handleInputFocus}
                 />
               </div>
               <div>
@@ -994,6 +1044,7 @@ export default function PresetDetail() {
                   value={newCommand.details}
                   onChange={(e) => setNewCommand({ ...newCommand, details: e.target.value })}
                   className="min-h-[80px]"
+                  onFocus={handleInputFocus}
                 />
               </div>
             </TabsContent>
@@ -1026,6 +1077,7 @@ export default function PresetDetail() {
                 value={editCommandForm.content}
                 onChange={(e) => setEditCommandForm({ ...editCommandForm, content: e.target.value })}
                 className="font-mono min-h-[100px]"
+                onFocus={handleInputFocus}
               />
             </div>
             <div>
@@ -1034,6 +1086,7 @@ export default function PresetDetail() {
                 id="edit-description"
                 value={editCommandForm.description}
                 onChange={(e) => setEditCommandForm({ ...editCommandForm, description: e.target.value })}
+                onFocus={handleInputFocus}
               />
             </div>
           </div>
@@ -1054,25 +1107,27 @@ export default function PresetDetail() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>编辑预设</DialogTitle>
+            <DialogTitle>编辑预设信息</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="edit-preset-name">预设名称</Label>
+            <div className="space-y-2">
+              <Label htmlFor="edit-preset-name" className="mb-2">预设名称</Label>
               <Input
                 id="edit-preset-name"
                 value={editForm.name}
                 onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                onFocus={handleInputFocus}
               />
             </div>
-            <div>
-              <Label htmlFor="edit-preset-description">预设描述</Label>
+            <div className="space-y-2">
+              <Label htmlFor="edit-preset-description" className="mb-2">预设描述</Label>
               <Textarea
                 id="edit-preset-description"
                 value={editForm.description}
                 onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                 rows={4}
+                onFocus={handleInputFocus}
               />
             </div>
           </div>
@@ -1083,7 +1138,7 @@ export default function PresetDetail() {
             </Button>
             <Button onClick={handleSavePresetEdit}>
               <Save className="w-4 h-4 mr-1" />
-              保存更改
+              保存
             </Button>
           </DialogFooter>
         </DialogContent>

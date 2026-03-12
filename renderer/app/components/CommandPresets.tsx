@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router";
-import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown, Search, Save } from "lucide-react";
 import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ScrollArea } from "./ui/scroll-area";
@@ -48,6 +48,7 @@ import { useExecutionStore } from "../store/executionStore";
 import { useCommandStore } from "../store/commandStore";
 import type { Preset } from "@shared/types";
 import { SelectedCommandsFloating } from "./SelectedCommandsFloating";
+import { handleInputFocus } from "../utils/focusUtils";
 
 const PRESET_ICONS = {
   database: Database,
@@ -82,6 +83,9 @@ export default function CommandPresets() {
     commands: [],
     order: 0,
   });
+  const [draftPreset, setDraftPreset] = useState<Omit<Preset, "id" | "createdAt" | "updatedAt"> | null>(null);
+  const [showDraftConfirmDialog, setShowDraftConfirmDialog] = useState(false);
+
 
   const [addDialogSearchQuery, setAddDialogSearchQuery] = useState('');
   const [addDialogSelectedCommand, setAddDialogSelectedCommand] = useState<any>(null);
@@ -171,9 +175,46 @@ export default function CommandPresets() {
     };
     await savePreset(preset);
     setNewPreset({ name: "", description: "", commands: [], order: 0 });
+    setDraftPreset(null); // Clear draft after successful creation
     setShowAddDialog(false);
     setCurrentPage(1);
   };
+
+  const handleCloseAddDialog = () => {
+    if (newPreset.name.trim() || newPreset.commands.length > 0 || newPreset.description?.trim()) {
+      setShowDraftConfirmDialog(true);
+    } else {
+      setShowAddDialog(false);
+      setAddDialogSearchQuery('');
+      setAddDialogSelectedCommand(null);
+      setAddDialogNewCommand({ content: '', description: '', details: '' });
+    }
+  };
+
+  const confirmSaveDraft = () => {
+    setDraftPreset(newPreset);
+    setShowDraftConfirmDialog(false);
+    setShowAddDialog(false);
+    toast.success("草稿已保存");
+  };
+
+  const discardDraft = () => {
+    setNewPreset({ name: "", description: "", commands: [], order: 0 });
+    setDraftPreset(null);
+    setShowDraftConfirmDialog(false);
+    setShowAddDialog(false);
+    setAddDialogSearchQuery('');
+    setAddDialogSelectedCommand(null);
+    setAddDialogNewCommand({ content: '', description: '', details: '' });
+  };
+
+  const handleOpenAddDialog = () => {
+    if (draftPreset) {
+      setNewPreset(draftPreset);
+    }
+    setShowAddDialog(true);
+  };
+
 
   const handleEditPreset = async () => {
     if (!editingPreset) return;
@@ -225,6 +266,10 @@ export default function CommandPresets() {
   };
 
   const handleExecutePreset = async (preset: Preset) => {
+    if (preset.commands.length === 0) {
+      toast.error('当前预设不存在命令，请添加预设');
+      return;
+    }
     const commandIds = preset.commands.map(cmd => cmd.id);
     await window.electronAPI.executePreset(preset.id, commandIds);
     startPreset(preset.id, commandIds);
@@ -419,7 +464,7 @@ export default function CommandPresets() {
                 )}
               </Button>
             </div>
-            <Button onClick={() => setShowAddDialog(true)}>
+            <Button onClick={handleOpenAddDialog}>
               <Plus className="w-4 h-4 mr-1" />
               添加预设
             </Button>
@@ -639,7 +684,7 @@ export default function CommandPresets() {
                </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
-            <ContextMenuItem onClick={() => setShowAddDialog(true)}>
+            <ContextMenuItem onClick={handleOpenAddDialog}>
               <BookmarkPlus className="w-4 h-4 mr-2" />
               添加预设
             </ContextMenuItem>
@@ -698,13 +743,22 @@ export default function CommandPresets() {
          )}
        </div>
 
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+      <Dialog open={showAddDialog} onOpenChange={(open) => {
+        if (!open) {
+          handleCloseAddDialog();
+        } else {
+          handleOpenAddDialog();
+        }
+      }}>
         <DialogContent 
           className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden"
           onInteractOutside={(e) => e.preventDefault()}
         >
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle>添加预设</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              添加预设
+              {draftPreset && <Badge variant="secondary" className="text-xs font-normal">草稿</Badge>}
+            </DialogTitle>
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto px-6">
@@ -716,6 +770,8 @@ export default function CommandPresets() {
                   value={newPreset.name}
                   onChange={(e) => setNewPreset({ ...newPreset, name: e.target.value })}
                   placeholder="例如：开发环境启动"
+                  autoFocus={false}
+                  onFocus={handleInputFocus}
                 />
               </div>
                <div className="space-y-2 mb-3">
@@ -725,6 +781,7 @@ export default function CommandPresets() {
                   value={newPreset.description}
                   onChange={(e) => setNewPreset({ ...newPreset, description: e.target.value })}
                   placeholder="简要描述这个预设的用途"
+                  onFocus={handleInputFocus}
                 />
               </div>
               
@@ -819,6 +876,7 @@ export default function CommandPresets() {
                       value={addDialogNewCommand.content}
                       onChange={(e) => setAddDialogNewCommand({ ...addDialogNewCommand, content: e.target.value })}
                       className="font-mono min-h-[60px]"
+                      onFocus={handleInputFocus}
                     />
                   </div>
                   <div>
@@ -828,6 +886,7 @@ export default function CommandPresets() {
                       placeholder="简短描述"
                       value={addDialogNewCommand.description}
                       onChange={(e) => setAddDialogNewCommand({ ...addDialogNewCommand, description: e.target.value })}
+                      onFocus={handleInputFocus}
                     />
                   </div>
                 <div className="mb-6">
@@ -838,6 +897,7 @@ export default function CommandPresets() {
                     value={addDialogNewCommand.details}
                     onChange={(e) => setAddDialogNewCommand({ ...addDialogNewCommand, details: e.target.value })}
                     className="min-h-[60px]"
+                    onFocus={handleInputFocus}
                   />
                 </div>
                   <Button
@@ -875,12 +935,7 @@ export default function CommandPresets() {
           </div>
           
           <DialogFooter className="flex-shrink-0 px-6 pb-6">
-            <Button variant="outline" onClick={() => {
-              setShowAddDialog(false);
-              setAddDialogSearchQuery('');
-              setAddDialogSelectedCommand(null);
-              setAddDialogNewCommand({ content: '', description: '', details: '' });
-            }}>
+            <Button variant="outline" onClick={handleCloseAddDialog}>
               取消
             </Button>
             <Button onClick={() => {
@@ -890,7 +945,8 @@ export default function CommandPresets() {
                 toast.error('预设名称不能为空');
               }
             }}>
-              添加
+              <Save className="w-4 h-4 mr-1" />
+              保存
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -915,14 +971,7 @@ export default function CommandPresets() {
                     value={editingPreset.name}
                     onChange={(e) => setEditingPreset(prev => prev ? { ...prev, name: e.target.value } : null)}
                     autoFocus={false}
-                    onFocus={(e) => {
-                      // Prevent auto-selection and move cursor to end
-                      const input = e.target;
-                      // Use setTimeout to ensure this runs after any default focus/select behavior
-                      setTimeout(() => {
-                        input.setSelectionRange(input.value.length, input.value.length);
-                      }, 0);
-                    }}
+                    onFocus={handleInputFocus}
                   />
                 </div>
                <div className="space-y-2 mb-3">
@@ -932,6 +981,7 @@ export default function CommandPresets() {
                    value={newPreset.description}
                    onChange={(e) => setNewPreset({ ...newPreset, description: e.target.value })}
                    placeholder="简要描述这个预设的用途"
+                   onFocus={handleInputFocus}
                  />
                </div>
                   
@@ -1030,6 +1080,7 @@ export default function CommandPresets() {
                           value={editDialogNewCommand.content}
                           onChange={(e) => setEditDialogNewCommand({ ...editDialogNewCommand, content: e.target.value })}
                           className="font-mono min-h-[60px]"
+                          onFocus={handleInputFocus}
                         />
                       </div>
                       <div>
@@ -1039,6 +1090,7 @@ export default function CommandPresets() {
                           placeholder="简短描述"
                           value={editDialogNewCommand.description}
                           onChange={(e) => setEditDialogNewCommand({ ...editDialogNewCommand, description: e.target.value })}
+                          onFocus={handleInputFocus}
                         />
                       </div>
                       <div className="mb-6">
@@ -1049,6 +1101,7 @@ export default function CommandPresets() {
                           value={editDialogNewCommand.details}
                           onChange={(e) => setEditDialogNewCommand({ ...editDialogNewCommand, details: e.target.value })}
                           className="min-h-[60px]"
+                          onFocus={handleInputFocus}
                         />
                       </div>
                       <Button
@@ -1105,6 +1158,7 @@ export default function CommandPresets() {
                 toast.error('预设名称不能为空');
               }
             }}>
+              <Save className="w-4 h-4 mr-1" />
               保存
             </Button>
           </DialogFooter>
@@ -1124,6 +1178,21 @@ export default function CommandPresets() {
             <AlertDialogAction onClick={confirmDeletePreset} className="bg-red-600 hover:bg-red-700 text-white">
               删除
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDraftConfirmDialog} onOpenChange={setShowDraftConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>保存草稿？</AlertDialogTitle>
+            <AlertDialogDescription>
+              您有未保存的内容，是否将其保存为草稿？下次打开时将自动加载。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={discardDraft}>不保存</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSaveDraft}>保存草稿</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

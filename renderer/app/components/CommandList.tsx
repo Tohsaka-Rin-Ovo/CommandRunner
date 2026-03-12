@@ -38,6 +38,7 @@ import { useCommandStore } from "../store/commandStore";
 import { useExecutionStore } from "../store/executionStore";
 import { usePresetStore } from "../store/presetStore";
 import type { Command as CommandType } from "@shared/types";
+import { handleInputFocus } from "../utils/focusUtils";
 
 interface Command {
   id: string;
@@ -611,6 +612,7 @@ export default function CommandList() {
                   setNewCommand({ ...newCommand, content: e.target.value })
                 }
                 className="font-mono"
+                onFocus={handleInputFocus}
               />
             </div>
             <div className="space-y-2">
@@ -622,6 +624,7 @@ export default function CommandList() {
                 onChange={(e) =>
                   setNewCommand({ ...newCommand, description: e.target.value })
                 }
+                onFocus={handleInputFocus}
               />
             </div>
             <div className="space-y-2">
@@ -633,6 +636,7 @@ export default function CommandList() {
                 onChange={(e) =>
                   setNewCommand({ ...newCommand, details: e.target.value })
                 }
+                onFocus={handleInputFocus}
               />
             </div>
           </div>
@@ -665,6 +669,7 @@ export default function CommandList() {
                     })
                   }
                   className="font-mono"
+                  onFocus={handleInputFocus}
                 />
               </div>
               <div className="space-y-2">
@@ -678,6 +683,7 @@ export default function CommandList() {
                       description: e.target.value,
                     })
                   }
+                  onFocus={handleInputFocus}
                 />
               </div>
               <div className="space-y-2">
@@ -691,6 +697,7 @@ export default function CommandList() {
                       details: e.target.value,
                     })
                   }
+                  onFocus={handleInputFocus}
                 />
               </div>
             </div>
