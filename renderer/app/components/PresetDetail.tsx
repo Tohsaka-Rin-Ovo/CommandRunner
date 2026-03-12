@@ -43,6 +43,7 @@ export default function PresetDetail() {
   const deletePreset = usePresetStore((state) => state.deletePreset)
   const startPreset = useExecutionStore((state) => state.startPreset)
   const stopPreset = useExecutionStore((state) => state.stopPreset)
+  const resetPresetExecution = useExecutionStore((state) => state.resetPresetExecution)
   const activePresets = useExecutionStore((state) => state.activePresets)
   const history = useHistoryStore((state) => state.history)
   const fetchHistory = useHistoryStore((state) => state.fetchHistory)
@@ -298,9 +299,30 @@ export default function PresetDetail() {
     
     const commandIds = preset.commands.map(cmd => cmd.id)
     try {
-      await window.electronAPI.executePreset(presetId, commandIds)
       startPreset(presetId, commandIds)
+      await window.electronAPI.executePreset(presetId, commandIds)
       toast.success('开始执行预设')
+    } catch (error) {
+      toast.error('执行预设失败')
+    }
+  }
+
+  // 重新执行预设
+  const handleReExecutePreset = async () => {
+    if (!preset || !presetId) return
+    if (preset.commands.length === 0) {
+      toast.error('预设中没有命令')
+      return
+    }
+    
+    resetPresetExecution(presetId)
+    setExpandedCommands(new Set())
+    
+    const commandIds = preset.commands.map(cmd => cmd.id)
+    try {
+      startPreset(presetId, commandIds)
+      await window.electronAPI.executePreset(presetId, commandIds)
+      toast.success('开始重新执行预设')
     } catch (error) {
       toast.error('执行预设失败')
     }
@@ -523,7 +545,7 @@ export default function PresetDetail() {
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
-            {activePreset && !activePreset.completed ? (
+            {activePreset?.overallStatus === 'running' ? (
               <Button
                 size="lg"
                 className="bg-green-600 hover:bg-green-600 text-white h-12 cursor-wait"
@@ -532,15 +554,27 @@ export default function PresetDetail() {
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                 执行中
               </Button>
+            ) : activePreset?.overallStatus === 'completed' ? (
+              <Button
+                size="lg"
+                className="bg-gray-900 hover:bg-gray-800 text-white h-12"
+                onClick={() => {
+                  handleReExecutePreset()
+                }}
+                disabled={preset.commands.length === 0}
+              >
+                <Play className="w-5 h-5 mr-2" />
+                执行完成
+              </Button>
             ) : (
               <Button
                 size="lg"
                 className="bg-gray-900 hover:bg-gray-800 text-white h-12"
                 onClick={() => {
-                  if (settings.confirmBeforeExecute) {
+                  if (settings.confirmBeforeExecute && !activePreset) {
                     setShowExecuteConfirmDialog(true)
                   } else {
-                    handleExecutePreset()
+                    activePreset ? handleReExecutePreset() : handleExecutePreset()
                   }
                 }}
                 disabled={preset.commands.length === 0}
@@ -552,10 +586,10 @@ export default function PresetDetail() {
 
             <Button
               size="lg"
-              variant={activePreset && !activePreset.completed ? "destructive" : "outline"}
-              className={`h-12 ${!(activePreset && !activePreset.completed) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              variant={activePreset?.overallStatus === 'running' ? "destructive" : "outline"}
+              className={`h-12 ${activePreset?.overallStatus !== 'running' ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={handleStopPreset}
-              disabled={!(activePreset && !activePreset.completed)}
+              disabled={activePreset?.overallStatus !== 'running'}
             >
               <Pause className="w-5 h-5 mr-2" />
               结束执行
@@ -573,7 +607,15 @@ export default function PresetDetail() {
 
             {activePreset && activePreset.total > 0 && (
               <div className="flex-1 flex items-center gap-3">
-                <Progress value={(activePreset.currentIndex / activePreset.total) * 100} className="h-2 flex-1" />
+                <Progress 
+                  value={(activePreset.currentIndex / activePreset.total) * 100} 
+                  className={`h-2 flex-1 ${
+                    activePreset.overallStatus === 'completed' ? '[&>[role=progressbar]]:bg-green-500' :
+                    activePreset.overallStatus === 'failed' ? '[&>[role=progressbar]]:bg-red-500' :
+                    activePreset.overallStatus === 'stopped' ? '[&>[role=progressbar]]:bg-yellow-500' :
+                    '[&>[role=progressbar]]:bg-blue-500'
+                  }`} 
+                />
                 <span className="text-sm text-gray-600 whitespace-nowrap">
                   {activePreset.currentIndex} / {activePreset.total}
                 </span>

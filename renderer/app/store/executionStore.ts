@@ -11,8 +11,9 @@ interface ExecutionStore {
   stopCommand: (id: string) => void
   
   startPreset: (id: string, commandIds: string[]) => void
-  updatePresetProgress: (id: string, progress: { currentIndex: number; total: number; commandId: string | null; completed?: boolean }) => void
+  updatePresetProgress: (id: string, progress: { currentIndex: number; total: number; commandId: string | null; completed?: boolean; commandStatus?: 'success' | 'failed' | 'stopped' }) => void
   stopPreset: (id: string) => void
+  resetPresetExecution: (id: string) => void
   
   toggleFullOutput: (id: string) => void
   clearCommandOutput: (id: string) => void
@@ -89,20 +90,37 @@ export const useExecutionStore = create<ExecutionStore>((set, _get) => ({
         total: commandIds.length,
         completed: false,
         stopRequested: false,
+        overallStatus: 'running',
+        failureCount: 0,
       })
       return { activePresets: newPresets }
     })
   },
 
-  updatePresetProgress: (id: string, progress: { currentIndex: number; total: number; commandId: string | null; completed?: boolean }) => {
+  updatePresetProgress: (id: string, progress: { currentIndex: number; total: number; commandId: string | null; completed?: boolean; commandStatus?: 'success' | 'failed' | 'stopped' }) => {
     set((state) => {
       const newPresets = new Map(state.activePresets)
       const preset = newPresets.get(id)
       if (preset) {
         preset.currentIndex = progress.currentIndex
         preset.total = progress.total
+        
+        // Update failure count and overall status based on command status
+        if (progress.commandStatus === 'failed') {
+          preset.failureCount += 1
+          preset.overallStatus = 'failed'
+        } else if (progress.commandStatus === 'stopped') {
+          preset.overallStatus = 'stopped'
+        }
+        
         if (progress.completed) {
           preset.completed = true
+          // Set final overall status based on failure count
+          if (preset.failureCount === 0) {
+            preset.overallStatus = 'completed'
+          } else {
+            preset.overallStatus = 'failed'
+          }
         }
       }
       return { activePresets: newPresets }
@@ -115,6 +133,7 @@ export const useExecutionStore = create<ExecutionStore>((set, _get) => ({
       const preset = newPresets.get(id)
       if (preset) {
         preset.stopRequested = true
+        preset.overallStatus = 'stopped'
       }
       return { activePresets: newPresets }
     })
@@ -139,6 +158,14 @@ export const useExecutionStore = create<ExecutionStore>((set, _get) => ({
       const newCommands = new Map(state.activeCommands)
       newCommands.delete(id)
       return { activeCommands: newCommands }
+    })
+  },
+
+  resetPresetExecution: (id: string) => {
+    set((state) => {
+      const newPresets = new Map(state.activePresets)
+      newPresets.delete(id)
+      return { activePresets: newPresets }
     })
   },
 }))

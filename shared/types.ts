@@ -57,4 +57,6 @@ export interface PresetExecution {
   total: number;
   completed: boolean;
   stopRequested: boolean;
+  overallStatus: 'idle' | 'running' | 'completed' | 'failed' | 'stopped';
+  failureCount: number;
 }

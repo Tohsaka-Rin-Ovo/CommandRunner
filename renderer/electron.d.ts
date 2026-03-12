@@ -36,7 +36,7 @@ export interface ElectronAPI {
   // Events
   onCommandOutput: (callback: (data: { commandId: string, line: string, type: 'stdout' | 'stderr' }) => void) => () => void
   onCommandComplete: (callback: (data: { commandId: string, success: boolean, code: number | null, output: string, duration: number }) => void) => () => void
-  onPresetProgress: (callback: (data: { presetId: string, currentIndex: number, total: number, commandId: string | null, completed?: boolean }) => void) => () => void
+  onPresetProgress: (callback: (data: { presetId: string, currentIndex: number, total: number, commandId: string | null, completed?: boolean, commandStatus?: 'success' | 'failed' | 'stopped' }) => void) => () => void
 }
 
 declare global {

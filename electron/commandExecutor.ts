@@ -5,6 +5,7 @@ export class CommandExecutor {
   private activeCommands: Map<string, ChildProcess> = new Map()
   private presetQueues: Map<string, string[]> = new Map()
   private presetStopRequested: Map<string, boolean> = new Map()
+  private commandStatuses: Map<string, 'success' | 'failed' | 'stopped'> = new Map()
 
   execute(commandId: string, command: string, workingDir: string): void {
     const childProcess = spawn(command, {
@@ -83,7 +84,7 @@ export class CommandExecutor {
         }, 120000)
 
         const checkInterval = setInterval(() => {
-          if (!this.activeCommands.has(commandId) || this.presetStopRequested.get(presetId)) {
+          if (!this.activeCommands.has(commandId)) {
             clearInterval(checkInterval)
             clearTimeout(timeout)
             resolve()
@@ -93,6 +94,17 @@ export class CommandExecutor {
 
       if (this.presetStopRequested.get(presetId)) {
         break
+      }
+
+      // Check command status and send it
+      const commandStatus = this.commandStatuses.get(commandId)
+      if (commandStatus === 'failed' || commandStatus === 'stopped') {
+        this.sendPresetProgress(presetId, {
+          currentIndex: i + 1,
+          total: commands.length,
+          commandId: null,
+          commandStatus
+        })
       }
     }
 
@@ -105,6 +117,11 @@ export class CommandExecutor {
 
     this.presetQueues.delete(presetId)
     this.presetStopRequested.delete(presetId)
+    // Clear command statuses for this preset
+    for (let i = 0; i < commands.length; i++) {
+      const commandId = `${presetId}-${i}`
+      this.commandStatuses.delete(commandId)
+    }
   }
 
   stopCommand(commandId: string): void {
@@ -112,6 +129,7 @@ export class CommandExecutor {
     if (process) {
       process.kill()
       this.activeCommands.delete(commandId)
+      this.commandStatuses.set(commandId, 'stopped')
     }
   }
 
@@ -141,6 +159,9 @@ export class CommandExecutor {
     output: string
     duration: number
   }): void {
+    const status: 'success' | 'failed' = result.success ? 'success' : 'failed'
+    this.commandStatuses.set(commandId, status)
+    
     mainWindow?.webContents.send('command-complete', {
       commandId,
       ...result
@@ -152,6 +173,7 @@ export class CommandExecutor {
     total: number
     commandId: string | null
     completed?: boolean
+    commandStatus?: 'success' | 'failed' | 'stopped'
   }): void {
     mainWindow?.webContents.send('preset-progress', {
       presetId,

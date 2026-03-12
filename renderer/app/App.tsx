@@ -66,6 +66,7 @@ function App() {
         total: data.total,
         commandId: data.commandId,
         completed: data.completed,
+        commandStatus: data.commandStatus,
       })
     })
 
