@@ -5,12 +5,14 @@ import { Toaster } from 'sonner'
 import { useCommandStore } from './store/commandStore'
 import { usePresetStore } from './store/presetStore'
 import { useHistoryStore } from './store/historyStore'
+import { usePresetHistoryStore } from './store/presetHistoryStore'
 import { useExecutionStore } from './store/executionStore'
 
 function App() {
   const fetchCommands = useCommandStore((state) => state.fetchCommands)
   const fetchPresets = usePresetStore((state) => state.fetchPresets)
   const fetchHistory = useHistoryStore((state) => state.fetchHistory)
+  const fetchPresetHistory = usePresetHistoryStore((state) => state.fetchPresetHistory)
 
   const updateCommandOutput = useExecutionStore((state) => state.updateCommandOutput)
   const completeCommand = useExecutionStore((state) => state.completeCommand)
@@ -25,7 +27,8 @@ function App() {
     fetchCommands()
     fetchPresets()
     fetchHistory()
-  }, [fetchCommands, fetchPresets, fetchHistory])
+    fetchPresetHistory()
+  }, [fetchCommands, fetchPresets, fetchHistory, fetchPresetHistory])
 
   useEffect(() => {
     if (!window.electronAPI) {
@@ -68,6 +71,40 @@ function App() {
         completed: data.completed,
         commandStatus: data.commandStatus,
       })
+
+      // 当预设执行完成时，创建预设历史记录
+      if (data.completed && data.presetId) {
+        const presets = usePresetStore.getState().presets
+        const preset = presets.find(p => p.id === data.presetId)
+        const presetExecution = useExecutionStore.getState().activePresets.get(data.presetId)
+
+        if (preset && presetExecution) {
+          const commandResults = Object.entries(presetExecution.commands).map(([commandId, execution]) => ({
+            commandId,
+            command: execution.command,
+            description: preset.commands.find(c => c.id === commandId)?.description,
+            status: execution.status,
+            output: execution.output,
+            duration: execution.duration,
+          }))
+
+          const historyItem = {
+            presetId: data.presetId,
+            presetName: preset.name,
+            status: presetExecution.overallStatus as 'success' | 'failed' | 'stopped',
+            startTime: Math.min(...Object.values(presetExecution.commands).map(cmd => cmd.startTime)),
+            endTime: Date.now(),
+            totalCommands: preset.commands.length,
+            successCount: commandResults.filter(r => r.status === 'success').length,
+            failedCount: commandResults.filter(r => r.status === 'failed').length,
+            stoppedCount: commandResults.filter(r => r.status === 'stopped').length,
+            isFavorite: false,
+            commandResults,
+          }
+
+          window.electronAPI.addPresetHistory(historyItem)
+        }
+      }
     })
 
     return () => {

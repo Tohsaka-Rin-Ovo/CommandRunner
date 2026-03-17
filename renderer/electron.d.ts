@@ -1,4 +1,4 @@
-import type { Command, Preset, History } from '@shared/types'
+import type { Command, Preset, History, PresetHistory } from '@shared/types'
 
 export interface ElectronAPI {
   // Commands
@@ -19,6 +19,20 @@ export interface ElectronAPI {
   addHistory: (historyItem: Partial<History> & { id?: string }) => Promise<boolean>
   clearHistory: () => Promise<boolean>
   deleteHistoryItem: (id: string) => Promise<boolean>
+
+  // History Favorites
+  toggleHistoryFavorite: (id: string) => Promise<boolean>
+  getFavoriteHistory: () => Promise<History[]>
+  cancelAllHistoryFavorites: () => Promise<boolean>
+
+  // Preset History
+  getPresetHistory: () => Promise<PresetHistory[]>
+  addPresetHistory: (historyItem: Partial<PresetHistory> & { id?: string }) => Promise<boolean>
+  clearPresetHistory: () => Promise<boolean>
+  deletePresetHistoryItem: (id: string) => Promise<boolean>
+  togglePresetHistoryFavorite: (id: string) => Promise<boolean>
+  getFavoritePresetHistory: () => Promise<PresetHistory[]>
+  cancelAllPresetHistoryFavorites: () => Promise<boolean>
 
   // Command Execution
   executeCommand: (command: string, options: any) => Promise<string>

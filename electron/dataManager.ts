@@ -281,12 +281,27 @@ export function getHistory(): any[] {
 
 export function addHistory(historyItem: any): boolean {
   const history = getHistory()
+
+  // 检查相同命令的记录数量，限制最多20条
+  const sameCommandHistory = history.filter(h => h.command === historyItem.command)
+  if (sameCommandHistory.length >= 20) {
+    // 删除最旧的记录（相同命令）
+    const filteredHistory = history.filter(h => h.command !== historyItem.command)
+    filteredHistory.unshift({
+      ...historyItem,
+      id: historyItem.id || Date.now().toString(),
+      isFavorite: false
+    })
+    return writeFile('history.json', filteredHistory)
+  }
+
   history.unshift({
     ...historyItem,
-    id: historyItem.id || Date.now().toString()
+    id: historyItem.id || Date.now().toString(),
+    isFavorite: false
   })
-  
-  // Keep only last 100 history items
+
+  // Keep only last 100 history items globally
   const trimmedHistory = history.slice(0, 100)
   return writeFile('history.json', trimmedHistory)
 }
@@ -297,6 +312,101 @@ export function clearHistory(): boolean {
 
 export function deleteHistoryItem(id: string): boolean {
   const history = getHistory()
+  const item = history.find(h => h.id === id)
+
+  // 如果是收藏的记录，不允许删除
+  if (item?.isFavorite) {
+    return false
+  }
+
   const filtered = history.filter(h => h.id !== id)
   return writeFile('history.json', filtered)
+}
+
+export function toggleHistoryFavorite(id: string): boolean {
+  const history = getHistory()
+  const updatedHistory = history.map(h =>
+    h.id === id ? { ...h, isFavorite: !h.isFavorite } : h
+  )
+  return writeFile('history.json', updatedHistory)
+}
+
+export function cancelAllHistoryFavorites(): boolean {
+  const history = getHistory()
+  const updatedHistory = history.map(h => ({ ...h, isFavorite: false }))
+  return writeFile('history.json', updatedHistory)
+}
+
+export function getFavoriteHistory(): any[] {
+  return getHistory().filter(h => h.isFavorite)
+}
+
+// Preset History
+export function getPresetHistory(): any[] {
+  return readFile<any[]>('presetHistory.json', [])
+}
+
+export function addPresetHistory(historyItem: any): boolean {
+  const history = getPresetHistory()
+
+  // 检查该预设的历史记录数量，限制最多20条
+  const presetHistory = history.filter(h => h.presetId === historyItem.presetId)
+
+  // 如果已达到20条，删除最旧的未收藏记录
+  if (presetHistory.length >= 20) {
+    const nonFavorites = presetHistory.filter(h => !h.isFavorite)
+    if (nonFavorites.length > 0) {
+      const oldestNonFavorite = nonFavorites.sort((a, b) => a.startTime - b.startTime)[0]
+      const filteredHistory = history.filter(h => h.id !== oldestNonFavorite.id)
+      filteredHistory.unshift({
+        ...historyItem,
+        id: historyItem.id || Date.now().toString(),
+        isFavorite: false
+      })
+      return writeFile('presetHistory.json', filteredHistory)
+    }
+  }
+
+  history.unshift({
+    ...historyItem,
+    id: historyItem.id || Date.now().toString(),
+    isFavorite: false
+  })
+
+  return writeFile('presetHistory.json', history)
+}
+
+export function clearPresetHistory(): boolean {
+  return writeFile('presetHistory.json', [])
+}
+
+export function deletePresetHistoryItem(id: string): boolean {
+  const history = getPresetHistory()
+  const item = history.find(h => h.id === id)
+
+  // 如果是收藏的记录，不允许删除
+  if (item?.isFavorite) {
+    return false
+  }
+
+  const filtered = history.filter(h => h.id !== id)
+  return writeFile('presetHistory.json', filtered)
+}
+
+export function togglePresetHistoryFavorite(id: string): boolean {
+  const history = getPresetHistory()
+  const updatedHistory = history.map(h =>
+    h.id === id ? { ...h, isFavorite: !h.isFavorite } : h
+  )
+  return writeFile('presetHistory.json', updatedHistory)
+}
+
+export function getFavoritePresetHistory(): any[] {
+  return getPresetHistory().filter(h => h.isFavorite)
+}
+
+export function cancelAllPresetHistoryFavorites(): boolean {
+  const history = getPresetHistory()
+  const updatedHistory = history.map(h => ({ ...h, isFavorite: false }))
+  return writeFile('presetHistory.json', updatedHistory)
 }

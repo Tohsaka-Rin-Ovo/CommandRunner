@@ -36,6 +36,29 @@ export interface History {
   startTime: number;
   endTime: number;
   output: string;
+  isFavorite?: boolean;
+}
+
+export interface PresetHistory {
+  id: string;
+  presetId: string;
+  presetName: string;
+  status: 'success' | 'failed' | 'stopped';
+  startTime: number;
+  endTime: number;
+  totalCommands: number;
+  successCount: number;
+  failedCount: number;
+  stoppedCount: number;
+  isFavorite: boolean;
+  commandResults: Array<{
+    commandId: string;
+    command: string;
+    description?: string;
+    status: 'success' | 'failed' | 'stopped';
+    output: string;
+    duration: number;
+  }>;
 }
 
 export interface CommandExecution {

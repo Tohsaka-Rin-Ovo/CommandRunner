@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
-import { Database, Play, Pause, ChevronLeft, Edit, Trash2, Plus, RotateCcw, CheckCircle, XCircle, AlertCircle, ArrowUp, ArrowDown, Search, Clock, ChevronDown as ChevronDownIcon, ChevronRight as ChevronRightIcon, Save, RefreshCw, Loader2 } from 'lucide-react'
+import { Database, Play, Pause, ChevronLeft, Edit, Trash2, Plus, RotateCcw, CheckCircle, XCircle, AlertCircle, ArrowUp, ArrowDown, Search, Clock, ChevronDown as ChevronDownIcon, ChevronRight as ChevronRightIcon, Save, RefreshCw, Loader2, Star, StarOff } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
@@ -25,9 +25,10 @@ import { toast } from 'sonner'
 import { usePresetStore } from '../store/presetStore'
 import { useExecutionStore } from '../store/executionStore'
 import { useHistoryStore } from '../store/historyStore'
+import { usePresetHistoryStore } from '../store/presetHistoryStore'
 import { useCommandStore } from '../store/commandStore'
 import { FullOutputDialog } from './FullOutputDialog'
-import type { Preset, PresetCommand } from '@shared/types'
+import type { Preset, PresetCommand, PresetHistory } from '@shared/types'
 import type { Command as CommandType, History } from '@shared/types'
 import { TerminalOutput } from "./TerminalOutput";
 import { handleInputFocus } from '../utils/focusUtils'
@@ -50,10 +51,15 @@ export default function PresetDetail() {
   const commands = useCommandStore((state) => state.commands)
   const fetchCommands = useCommandStore((state) => state.fetchCommands)
   
+  // 预设历史
+  const presetHistory = usePresetHistoryStore((state) => state.presetHistory)
+  const deletePresetHistoryItem = usePresetHistoryStore((state) => state.deletePresetHistoryItem)
+  const togglePresetHistoryFavorite = usePresetHistoryStore((state) => state.togglePresetHistoryFavorite)
+  
   // 预设数据
   const preset = presets.find(p => p.id === presetId)
   const activePreset = activePresets.get(presetId || '')
-  const presetHistory = history.filter(h => h.presetId === presetId)
+  const currentPresetHistory = presetHistory.filter(h => h.presetId === presetId)
 
   // 对话框状态
   const [showEditDialog, setShowEditDialog] = useState(false)
@@ -864,25 +870,28 @@ export default function PresetDetail() {
                   执行历史记录
                 </h3>
                 <span className="text-xs text-gray-500">
-                  共 {presetHistory.length} 条记录
+                  共 {currentPresetHistory.length} 条记录
                 </span>
               </div>
 
-              {presetHistory.length === 0 ? (
+              {currentPresetHistory.length === 0 ? (
                 <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                   <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">暂无执行历史</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {presetHistory
+                  {currentPresetHistory
                     .sort((a, b) => b.startTime - a.startTime)
                     .map((historyItem) => (
                       <div
                         key={historyItem.id}
-                        className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                        className={`bg-white rounded-lg border ${
+                          historyItem.isFavorite ? 'border-yellow-400 shadow-md' : 'border-gray-200'
+                        } p-4 hover:shadow-md transition-all`}
                       >
-                        <div className="flex items-center justify-between">
+                        {/* 头部：状态、时间、收藏按钮 */}
+                        <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-4">
                             {/* 状态图标 */}
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -894,13 +903,14 @@ export default function PresetDetail() {
                               {historyItem.status === 'failed' && <XCircle className="w-5 h-5 text-red-600" />}
                               {historyItem.status === 'stopped' && <AlertCircle className="w-5 h-5 text-yellow-600" />}
                             </div>
-                            
+
+                            {/* 状态文本 */}
                             <div>
-                              <div className="flex items-center gap-3 mb-1">
+                              <div className="flex items-center gap-3">
                                 <span className="text-sm font-medium text-gray-900">
                                   {historyItem.status === 'success' ? '执行成功' :
                                    historyItem.status === 'failed' ? '执行失败' :
-                                   '已停止'}
+                                   '执行中断'}
                                 </span>
                                 <Badge variant={historyItem.status === 'success' ? 'default' : 'destructive'}>
                                   {historyItem.status === 'success' ? '成功' :
@@ -908,22 +918,75 @@ export default function PresetDetail() {
                                    '已停止'}
                                 </Badge>
                               </div>
-                              <div className="flex items-center gap-4 text-sm text-gray-500">
-                                <span>执行时间: {new Date(historyItem.startTime).toLocaleString('zh-CN')}</span>
+                              <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                                <span>{new Date(historyItem.startTime).toLocaleString('zh-CN')}</span>
                                 <span>耗时: {historyItem.endTime - historyItem.startTime}ms</span>
-                                <span>命令数: {preset.commands.length}</span>
                               </div>
                             </div>
                           </div>
-                          
-                          {/* 查看详情按钮 */}
+
+                          {/* 收藏按钮 */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => togglePresetHistoryFavorite(historyItem.id)}
+                            className={historyItem.isFavorite ? 'text-yellow-600' : 'text-gray-400'}
+                          >
+                            <Star className={`w-5 h-5 ${historyItem.isFavorite ? 'fill-current' : ''}`} />
+                          </Button>
+                        </div>
+
+                        {/* 统计信息 */}
+                        <div className="flex items-center gap-6 text-sm mb-3 px-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500">命令:</span>
+                            <span className="font-medium text-gray-900">{historyItem.totalCommands}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-green-600">
+                            <CheckCircle className="w-4 h-4" />
+                            <span>{historyItem.successCount}</span>
+                          </div>
+                          {historyItem.failedCount > 0 && (
+                            <div className="flex items-center gap-2 text-red-600">
+                              <XCircle className="w-4 h-4" />
+                              <span>{historyItem.failedCount}</span>
+                            </div>
+                          )}
+                          {historyItem.stoppedCount > 0 && (
+                            <div className="flex items-center gap-2 text-yellow-600">
+                              <AlertCircle className="w-4 h-4" />
+                              <span>{historyItem.stoppedCount}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 操作按钮 */}
+                        <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleShowHistoryDetail(historyItem)}
+                            onClick={() => navigate(`/history/preset/${historyItem.id}`)}
                           >
                             查看详情
                           </Button>
+                          {!historyItem.isFavorite && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={async () => {
+                                const success = await deletePresetHistoryItem(historyItem.id)
+                                if (success) {
+                                  toast.success('历史记录已删除')
+                                } else {
+                                  toast.error('收藏的历史记录不能删除')
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              删除
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}

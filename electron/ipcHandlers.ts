@@ -65,6 +65,48 @@ export function setupIPCHandlers() {
     return DataManager.deleteHistoryItem(id)
   })
 
+  // History Favorites
+  ipcMain.handle('toggle-history-favorite', async (_event, id) => {
+    return DataManager.toggleHistoryFavorite(id)
+  })
+
+  ipcMain.handle('get-favorite-history', async () => {
+    return DataManager.getFavoriteHistory()
+  })
+
+  ipcMain.handle('cancel-all-history-favorites', async () => {
+    return DataManager.cancelAllHistoryFavorites()
+  })
+
+  // Preset History
+  ipcMain.handle('get-preset-history', async () => {
+    return DataManager.getPresetHistory()
+  })
+
+  ipcMain.handle('add-preset-history', async (_event, historyItem) => {
+    return DataManager.addPresetHistory(historyItem)
+  })
+
+  ipcMain.handle('clear-preset-history', async () => {
+    return DataManager.clearPresetHistory()
+  })
+
+  ipcMain.handle('delete-preset-history-item', async (_event, id) => {
+    return DataManager.deletePresetHistoryItem(id)
+  })
+
+  ipcMain.handle('toggle-preset-history-favorite', async (_event, id) => {
+    return DataManager.togglePresetHistoryFavorite(id)
+  })
+
+  ipcMain.handle('get-favorite-preset-history', async () => {
+    return DataManager.getFavoritePresetHistory()
+  })
+
+  ipcMain.handle('cancel-all-preset-history-favorites', async () => {
+    return DataManager.cancelAllPresetHistoryFavorites()
+  })
+
   // Command Execution
   ipcMain.handle('execute-command', async (_event, command, options) => {
     const commandId = Date.now().toString()

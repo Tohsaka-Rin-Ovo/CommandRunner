@@ -6,7 +6,10 @@ interface HistoryStore {
   loading: boolean
   fetchHistory: () => Promise<void>
   clearHistory: () => Promise<void>
-  deleteHistoryItem: (id: string) => Promise<void>
+  deleteHistoryItem: (id: string) => Promise<boolean>
+  toggleHistoryFavorite: (id: string) => Promise<boolean>
+  cancelAllHistoryFavorites: () => Promise<void>
+  getFavoriteHistory: () => History[]
 }
 
 export const useHistoryStore = create<HistoryStore>((set, get) => ({
@@ -35,7 +38,25 @@ export const useHistoryStore = create<HistoryStore>((set, get) => ({
   },
 
   deleteHistoryItem: async (id: string) => {
-    await window.electronAPI.deleteHistoryItem(id)
+    const success = await window.electronAPI.deleteHistoryItem(id)
+    if (success) {
+      await get().fetchHistory()
+      return true
+    }
+    return false
+  },
+
+  toggleHistoryFavorite: async (id: string) => {
+    await window.electronAPI.toggleHistoryFavorite(id)
     await get().fetchHistory()
+  },
+
+  cancelAllHistoryFavorites: async () => {
+    await window.electronAPI.cancelAllHistoryFavorites()
+    await get().fetchHistory()
+  },
+
+  getFavoriteHistory: () => {
+    return get().history.filter(h => h.isFavorite)
   },
 }))

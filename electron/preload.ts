@@ -20,6 +20,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearHistory: () => ipcRenderer.invoke('clear-history'),
   deleteHistoryItem: (id: string) => ipcRenderer.invoke('delete-history-item', id),
 
+  // History Favorites
+  toggleHistoryFavorite: (id: string) => ipcRenderer.invoke('toggle-history-favorite', id),
+  getFavoriteHistory: () => ipcRenderer.invoke('get-favorite-history'),
+  cancelAllHistoryFavorites: () => ipcRenderer.invoke('cancel-all-history-favorites'),
+
+  // Preset History
+  getPresetHistory: () => ipcRenderer.invoke('get-preset-history'),
+  addPresetHistory: (historyItem: any) => ipcRenderer.invoke('add-preset-history', historyItem),
+  clearPresetHistory: () => ipcRenderer.invoke('clear-preset-history'),
+  deletePresetHistoryItem: (id: string) => ipcRenderer.invoke('delete-preset-history-item', id),
+  togglePresetHistoryFavorite: (id: string) => ipcRenderer.invoke('toggle-preset-history-favorite', id),
+  getFavoritePresetHistory: () => ipcRenderer.invoke('get-favorite-preset-history'),
+  cancelAllPresetHistoryFavorites: () => ipcRenderer.invoke('cancel-all-preset-history-favorites'),
+
   // Command Execution
   executeCommand: (command: string, options: any) => ipcRenderer.invoke('execute-command', command, options),
   executePreset: (presetId: string, commandIds: string[]) => ipcRenderer.invoke('execute-preset', presetId, commandIds),
