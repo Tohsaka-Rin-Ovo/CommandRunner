@@ -84,6 +84,7 @@ export default function CommandList() {
   });
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [commandToDelete, setCommandToDelete] = useState<string | null>(null);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showAddToPresetDialog, setShowAddToPresetDialog] = useState(false);
   const [selectedCommandForPreset, setSelectedCommandForPreset] = useState<Command | null>(null);
 
@@ -186,6 +187,18 @@ export default function CommandList() {
     setSelectedCommands(newSelected);
   };
 
+  const handleToggleAll = () => {
+    const allCommandIds = commands.map(c => c.id);
+    
+    if (selectedCommands.size === commands.length && commands.length > 0) {
+      // 如果全部选中，则取消全选
+      setSelectedCommands(new Set());
+    } else {
+      // 否则全选
+      setSelectedCommands(new Set(allCommandIds));
+    }
+  };
+
   const handleAddCommand = async () => {
     if (!newCommand.content || !newCommand.content.trim()) {
       toast.error("命令内容不能为空");
@@ -237,6 +250,19 @@ export default function CommandList() {
       } catch (error) {
         toast.error("删除命令失败：" + (error as Error).message);
       }
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    try {
+      for (const commandId of selectedCommands) {
+        await deleteCommand(commandId);
+      }
+      toast.success(`已删除 ${selectedCommands.size} 个命令`);
+      setShowBulkDeleteDialog(false);
+      setSelectedCommands(new Set());
+    } catch (error) {
+      toast.error("批量删除命令失败：" + (error as Error).message);
     }
   };
 
@@ -360,7 +386,14 @@ export default function CommandList() {
       {/* 头部操作栏 */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex items-center gap-3">
+            {bulkSelectMode && (
+              <Checkbox
+                checked={selectedCommands.size === commands.length && commands.length > 0}
+                onCheckedChange={handleToggleAll}
+                className="w-4 h-4"
+              />
+            )}
             <Button
               variant={bulkSelectMode ? "default" : "outline"}
               size="sm"
@@ -373,8 +406,18 @@ export default function CommandList() {
             </Button>
             {bulkSelectMode && selectedCommands.size > 0 && (
               <span className="ml-3 text-sm text-gray-600">
-                已选择 {selectedCommands.size} 个命令
+                已选择 {selectedCommands.size} / {commands.length}
               </span>
+            )}
+            {bulkSelectMode && selectedCommands.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteDialog(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                删除选中 ({selectedCommands.size})
+              </Button>
             )}
           </div>
           <div className="flex gap-2">
@@ -403,8 +446,12 @@ export default function CommandList() {
           {currentCommands.map((command) => (
             <ContextMenu key={command.id}>
               <ContextMenuTrigger asChild>
-                <div 
-                  className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+                <div
+                  className={`bg-white rounded-lg border overflow-hidden hover:shadow-md transition-shadow ${
+                    bulkSelectMode && selectedCommands.has(command.id)
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200'
+                  }`}
                   onContextMenu={(e) => {
                     console.log('ContextMenuTrigger contextmenu event', e);
                   }}
@@ -840,6 +887,24 @@ export default function CommandList() {
             <AlertDialogCancel onClick={() => setCommandToDelete(null)}>取消</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteCommand} className="bg-red-600 hover:bg-red-700 text-white">
               删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 批量删除确认对话框 */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定要删除选中的命令吗？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作无法撤销。这将永久删除选中的 {selectedCommands.size} 个命令及其相关的执行历史。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkDelete} className="bg-red-600 hover:bg-red-700 text-white">
+              删除 ({selectedCommands.size})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

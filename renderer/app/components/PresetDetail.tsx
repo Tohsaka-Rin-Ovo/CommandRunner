@@ -10,6 +10,7 @@ import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { Label } from './ui/label'
 import { Switch } from './ui/switch'
+import { Checkbox } from './ui/checkbox'
 import { ScrollArea } from './ui/scroll-area'
 import {
   AlertDialog,
@@ -40,6 +41,7 @@ export default function PresetDetail() {
   
   // Store 数据
   const presets = usePresetStore((state) => state.presets)
+  const fetchPresets = usePresetStore((state) => state.fetchPresets)
   const updatePreset = usePresetStore((state) => state.updatePreset)
   const deletePreset = usePresetStore((state) => state.deletePreset)
   const startPreset = useExecutionStore((state) => state.startPreset)
@@ -70,6 +72,7 @@ export default function PresetDetail() {
   const [showFullOutputDialog, setShowFullOutputDialog] = useState(false)
   const [showFailedConfirmDialog, setShowFailedConfirmDialog] = useState(false)
   const [showStoppedConfirmDialog, setShowStoppedConfirmDialog] = useState(false)
+  const [showBulkDeleteCommandsDialog, setShowBulkDeleteCommandsDialog] = useState(false)
   
   // 表单状态
   const [editForm, setEditForm] = useState({ name: '', description: '' })
@@ -88,6 +91,13 @@ export default function PresetDetail() {
   
   // 展开/收起状态
   const [expandedCommands, setExpandedCommands] = useState<Set<string>>(new Set())
+  
+  // 刷新状态
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  
+  // 批量选择状态
+  const [isBatchSelectMode, setIsBatchSelectMode] = useState(false)
+  const [selectedCommandIds, setSelectedCommandIds] = useState<Set<string>>(new Set())
   
   // 全局输出数据
   const [fullOutputData, setFullOutputData] = useState<{
@@ -247,6 +257,60 @@ export default function PresetDetail() {
     }
   }
   
+  // 批量删除命令
+  const handleDeleteSelectedCommands = async () => {
+    if (!preset || !presetId || selectedCommandIds.size === 0) return
+
+    const updatedCommands = preset.commands.filter(cmd => !selectedCommandIds.has(cmd.id))
+
+    const success = await updatePreset(presetId, { commands: updatedCommands })
+    if (success) {
+      toast.success(`已删除 ${selectedCommandIds.size} 个命令`)
+      setSelectedCommandIds(new Set())
+      setShowBulkDeleteCommandsDialog(false)
+      setExpandedCommands(prev => {
+        const newSet = new Set(prev)
+        selectedCommandIds.forEach(id => newSet.delete(id))
+        return newSet
+      })
+    } else {
+      toast.error('批量删除命令失败')
+    }
+  }
+  
+  // 切换单个命令的选中状态
+  const toggleCommandSelection = (commandId: string) => {
+    setSelectedCommandIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(commandId)) {
+        newSet.delete(commandId)
+      } else {
+        newSet.add(commandId)
+      }
+      return newSet
+    })
+  }
+  
+  // 全选/取消全选
+  const handleToggleAll = () => {
+    if (!preset) return
+    const allCommandIds = preset.commands.map(cmd => cmd.id)
+    
+    if (selectedCommandIds.size === preset.commands.length) {
+      // 如果全部选中，则取消全选
+      setSelectedCommandIds(new Set())
+    } else {
+      // 否则全选
+      setSelectedCommandIds(new Set(allCommandIds))
+    }
+  }
+  
+  // 退出批量选择模式
+  const handleExitBatchSelect = () => {
+    setIsBatchSelectMode(false)
+    setSelectedCommandIds(new Set())
+  }
+  
   // 从命令库选择
   const handleSelectFromLibrary = (command: CommandType) => {
     setSelectedCommandFromLibrary(command)
@@ -352,9 +416,33 @@ export default function PresetDetail() {
   }
 
   // 刷新页面
-  const handleRefresh = () => {
-    navigate(0);
-    toast.success('当前预设详情页已刷新');
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      // 刷新预设数据
+      await fetchPresets();
+      
+      // 刷新历史记录
+      await fetchHistory();
+      
+      // 刷新命令库
+      await fetchCommands();
+      
+      // 重置执行状态
+      if (presetId) {
+        resetPresetExecution(presetId);
+      }
+      
+      // 重置展开的命令状态
+      setExpandedCommands(new Set());
+      
+      toast.success('当前预设详情页已刷新');
+    } catch (error) {
+      console.error('刷新失败:', error);
+      toast.error('刷新失败，请重试');
+    } finally {
+      setIsRefreshing(false)
+    }
   }
   
   // 重置执行
@@ -626,8 +714,9 @@ export default function PresetDetail() {
               size="lg"
               onClick={handleRefresh}
               className="h-12"
+              disabled={isRefreshing}
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
               刷新
             </Button>
 
@@ -687,13 +776,58 @@ export default function PresetDetail() {
             {/* 命令列表标签页 */}
             <TabsContent value="commands" className="space-y-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-gray-700">
-                  按顺序执行以下命令
-                </h3>
-                <Button variant="outline" size="sm" onClick={() => setShowAddCommandDialog(true)}>
-                  <Plus className="w-4 h-4 mr-1" />
-                  添加命令
-                </Button>
+                <div className="flex items-center gap-3">
+                  {isBatchSelectMode && (
+                    <>
+                      <Checkbox
+                        checked={selectedCommandIds.size === preset.commands.length && preset.commands.length > 0}
+                        onCheckedChange={handleToggleAll}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm text-gray-600">
+                        已选择 {selectedCommandIds.size} / {preset.commands.length}
+                      </span>
+                      {selectedCommandIds.size > 0 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setShowBulkDeleteCommandsDialog(true)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          删除选中 ({selectedCommandIds.size})
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  {!isBatchSelectMode && (
+                    <h3 className="text-sm font-medium text-gray-700">
+                      按顺序执行以下命令
+                    </h3>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {isBatchSelectMode ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExitBatchSelect}
+                    >
+                      退出批量选择
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsBatchSelectMode(true)}
+                    >
+                      批量选择
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => setShowAddCommandDialog(true)}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    添加命令
+                  </Button>
+                </div>
               </div>
 
               {preset.commands.length === 0 ? (
@@ -712,10 +846,21 @@ export default function PresetDetail() {
                     .map((command, index) => (
                       <div
                         key={command.id}
-                        className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+                        className={`bg-white rounded-lg border overflow-hidden hover:shadow-md transition-shadow ${
+                          isBatchSelectMode && selectedCommandIds.has(command.id)
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200'
+                        }`}
                       >
                         <div className="p-4">
                           <div className="flex items-start gap-4">
+                            {isBatchSelectMode && (
+                              <Checkbox
+                                checked={selectedCommandIds.has(command.id)}
+                                onCheckedChange={() => toggleCommandSelection(command.id)}
+                                className="mt-1"
+                              />
+                            )}
                             <div className="flex-1 min-w-0">
                               <code className="block bg-gray-900 text-green-400 px-4 py-3 rounded font-mono text-sm mb-3 overflow-x-auto">
                                 {command.content}
@@ -1420,6 +1565,24 @@ export default function PresetDetail() {
           status={fullOutputData.status}
         />
       )}
+
+      {/* 批量删除命令确认对话框 */}
+      <AlertDialog open={showBulkDeleteCommandsDialog} onOpenChange={setShowBulkDeleteCommandsDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定要删除选中的命令吗？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作无法撤销。这将永久删除选中的 {selectedCommandIds.size} 个命令。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSelectedCommands} className="bg-red-600 hover:bg-red-700 text-white">
+              删除 ({selectedCommandIds.size})
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
