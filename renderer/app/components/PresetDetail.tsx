@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router'
 import { Database, Play, Pause, ChevronLeft, Edit, Trash2, Plus, RotateCcw, CheckCircle, XCircle, AlertCircle, ArrowUp, ArrowDown, Search, Clock, ChevronDown as ChevronDownIcon, ChevronRight as ChevronRightIcon, Save, RefreshCw, Loader2, Star, StarOff } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Progress } from './ui/progress'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog'
@@ -424,17 +425,8 @@ export default function PresetDetail() {
   
   // 停止执行
   const handleStopPreset = async () => {
-    if (!presetId) return
-    if (preset?.commands.length === 0) {
-      toast.error('当前预设不存在命令，请添加预设')
-      return
-    }
-    try {
-      stopPreset(presetId)
-      toast.success('已结束执行')
-    } catch (error) {
-      toast.error('停止执行失败')
-    }
+    await window.electronAPI?.stopPreset(presetId || '')
+    stopPreset(presetId || '')
   }
 
   // 刷新页面
@@ -672,53 +664,85 @@ export default function PresetDetail() {
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                 执行中
               </Button>
-            ) : activePreset?.overallStatus === 'completed' ? (
-              <Button
-                size="lg"
-                className="bg-green-500 hover:bg-green-600 text-white h-12"
-                onClick={handleReExecutePreset}
-                disabled={preset.commands.length === 0}
-              >
-                <Play className="w-5 h-5 mr-2" />
-                执行完成
-              </Button>
-            ) : activePreset?.overallStatus === 'failed' ? (
-              <Button
-                size="lg"
-                className="bg-red-600 hover:bg-red-700 text-white h-12"
-                onClick={() => setShowFailedConfirmDialog(true)}
-                disabled={preset.commands.length === 0}
-              >
-                <AlertCircle className="w-5 h-5 mr-2" />
-                执行失败
-              </Button>
-            ) : activePreset?.overallStatus === 'stopped' ? (
-              <Button
-                size="lg"
-                className="bg-yellow-500 hover:bg-yellow-600 text-white h-12"
-                onClick={() => setShowStoppedConfirmDialog(true)}
-                disabled={preset.commands.length === 0}
-              >
-                <AlertCircle className="w-5 h-5 mr-2" />
-                执行中断
-              </Button>
-            ) : (
-              <Button
-                size="lg"
-                className="bg-green-500 hover:bg-green-600 text-white h-12"
-                onClick={() => {
-                  if (settings.confirmBeforeExecute && !activePreset) {
-                    setShowExecuteConfirmDialog(true)
-                  } else {
-                    activePreset ? handleReExecutePreset() : handleExecutePreset()
-                  }
-                }}
-                disabled={preset.commands.length === 0}
-              >
-                <Play className="w-5 h-5 mr-2" />
-                执行所有命令
-              </Button>
-            )}
+              ) : activePreset?.overallStatus === 'completed' ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="lg"
+                      className="bg-green-500 hover:bg-green-600 text-white h-12"
+                      onClick={handleReExecutePreset}
+                      disabled={preset.commands.length === 0}
+                    >
+                      <Play className="w-5 h-5 mr-2" />
+                      执行完成
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-gray-900 text-white border border-gray-700 shadow-lg">
+                    <div className="max-w-xs">
+                      <div className="font-medium mb-1">
+                        {terminalMode === 'external' ? '📢 独立终端窗口模式' : '💻 应用内运行模式'}
+                      </div>
+                      <div className="text-xs text-gray-300">
+                        {terminalMode === 'external' 
+                          ? '预设将在独立终端窗口中执行，窗口弹出即代表完成'
+                          : '预设将在应用内部执行，可以实时查看输出'}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              ) : activePreset?.overallStatus === 'failed' ? (
+               <Button
+                 size="lg"
+                 className="bg-red-600 hover:bg-red-700 text-white h-12"
+                 onClick={() => setShowFailedConfirmDialog(true)}
+                 disabled={preset.commands.length === 0}
+               >
+                 <AlertCircle className="w-5 h-5 mr-2" />
+                 执行失败
+               </Button>
+             ) : activePreset?.overallStatus === 'stopped' ? (
+               <Button
+                 size="lg"
+                 className="bg-yellow-500 hover:bg-yellow-600 text-white h-12"
+                 onClick={() => setShowStoppedConfirmDialog(true)}
+                 disabled={preset.commands.length === 0}
+               >
+                 <AlertCircle className="w-5 h-5 mr-2" />
+                 执行中断
+               </Button>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="lg"
+                      className="bg-green-500 hover:bg-green-600 text-white h-12"
+                      onClick={() => {
+                        if (settings.confirmBeforeExecute && !activePreset) {
+                          setShowExecuteConfirmDialog(true)
+                        } else {
+                          activePreset ? handleReExecutePreset() : handleExecutePreset()
+                        }
+                      }}
+                      disabled={preset.commands.length === 0}
+                    >
+                      <Play className="w-5 h-5 mr-2" />
+                      执行所有命令
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-gray-900 text-white border border-gray-700 shadow-lg">
+                    <div className="max-w-xs">
+                      <div className="font-medium mb-1">
+                        {terminalMode === 'external' ? '📢 独立终端窗口模式' : '💻 应用内运行模式'}
+                      </div>
+                      <div className="text-xs text-gray-300">
+                        {terminalMode === 'external' 
+                          ? '预设将在独立终端窗口中执行，窗口弹出即代表完成'
+                          : '预设将在应用内部执行，可以实时查看输出'}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )}
 
             <Button
               size="lg"

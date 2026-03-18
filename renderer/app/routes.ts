@@ -7,6 +7,7 @@ import CommandHistory from './components/CommandHistory'
 import HistoryPage from './components/HistoryPage'
 import PresetHistoryDetail from './components/PresetHistoryDetail'
 import CommandHistoryDetail from './components/CommandHistoryDetail'
+import RunningTasks from './components/RunningTasks'
 
 export const router = createBrowserRouter([
   {
@@ -16,6 +17,7 @@ export const router = createBrowserRouter([
       { index: true, Component: CommandList },
       { path: 'presets', Component: CommandPresets },
       { path: 'presets/:presetId', Component: PresetDetail },
+      { path: 'running', Component: RunningTasks },
       { path: 'history', Component: HistoryPage, children: [
         { path: 'preset/:id', Component: PresetHistoryDetail },
         { path: 'command/:id', Component: CommandHistoryDetail },

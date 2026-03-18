@@ -42,6 +42,7 @@ import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Badge } from "./ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { toast } from "sonner";
 import { usePresetStore } from "../store/presetStore";
 import { useExecutionStore } from "../store/executionStore";
@@ -103,6 +104,7 @@ export default function CommandPresets() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [terminalMode, setTerminalMode] = useState<'internal' | 'external'>('internal');
   const itemsPerPage = 8;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -111,6 +113,20 @@ export default function CommandPresets() {
   useEffect(() => {
     fetchPresets();
   }, [fetchPresets]);
+  
+  useEffect(() => {
+    const loadTerminalMode = async () => {
+      try {
+        if (window.electronAPI?.getGlobalSettings) {
+          const settings = await window.electronAPI.getGlobalSettings()
+          setTerminalMode(settings?.terminalMode || 'internal')
+        }
+      } catch (error) {
+        console.error('Failed to load terminal mode:', error)
+      }
+    }
+    loadTerminalMode()
+  }, [])
   
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -582,41 +598,87 @@ export default function CommandPresets() {
                                 <div className="mt-4 pt-4 border-t border-gray-100">
                                   <div className="flex gap-2 mb-3">
                                     {execution?.completed || execution?.stopRequested ? (
-                                      <Button
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleExecutePreset(preset);
-                                        }}
-                                        className="flex-1"
-                                      >
-                                        <Play className="w-4 h-4 mr-1" />
-                                        重新执行
-                                      </Button>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleExecutePreset(preset);
+                                            }}
+                                            className="flex-1"
+                                          >
+                                            <Play className="w-4 h-4 mr-1" />
+                                            重新执行
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="bg-gray-900 text-white border border-gray-700 shadow-lg">
+                                          <div className="max-w-xs">
+                                            <div className="font-medium mb-1">
+                                              {terminalMode === 'external' ? '📢 独立终端窗口模式' : '💻 应用内运行模式'}
+                                            </div>
+                                            <div className="text-xs text-gray-300">
+                                              {terminalMode === 'external' 
+                                                ? '预设将在独立终端窗口中执行，窗口弹出即代表完成'
+                                                : '预设将在应用内部执行，可以实时查看输出'}
+                                            </div>
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
                                     ) : execution && !execution?.completed ? (
-                                      <Button
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleStopPreset(preset.id);
-                                        }}
-                                        className="flex-1 bg-red-600 hover:bg-red-700"
-                                      >
-                                        <RotateCcw className="w-4 h-4 mr-1" />
-                                        停止执行
-                                      </Button>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleStopPreset(preset.id);
+                                            }}
+                                            className="flex-1 bg-red-600 hover:bg-red-700"
+                                          >
+                                            <RotateCcw className="w-4 h-4 mr-1" />
+                                            停止执行
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="bg-gray-900 text-white border border-gray-700 shadow-lg">
+                                          <div className="max-w-xs">
+                                            <div className="font-medium mb-1">
+                                              停止预设执行
+                                            </div>
+                                            <div className="text-xs text-gray-300">
+                                              立即停止正在执行的预设
+                                            </div>
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
                                     ) : (
-                                      <Button
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleExecutePreset(preset);
-                                        }}
-                                        className="flex-1"
-                                      >
-                                        <Play className="w-4 h-4 mr-1" />
-                                        执行预设
-                                      </Button>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleExecutePreset(preset);
+                                            }}
+                                            className="flex-1"
+                                          >
+                                            <Play className="w-4 h-4 mr-1" />
+                                            执行预设
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="bg-gray-900 text-white border border-gray-700 shadow-lg">
+                                          <div className="max-w-xs">
+                                            <div className="font-medium mb-1">
+                                              {terminalMode === 'external' ? '📢 独立终端窗口模式' : '💻 应用内运行模式'}
+                                            </div>
+                                            <div className="text-xs text-gray-300">
+                                              {terminalMode === 'external' 
+                                                ? '预设将在独立终端窗口中执行，窗口弹出即代表完成'
+                                                : '预设将在应用内部执行，可以实时查看输出'}
+                                            </div>
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
                                     )}
                                   </div>
 

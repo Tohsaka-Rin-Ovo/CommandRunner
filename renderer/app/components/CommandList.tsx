@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Plus, GripHorizontal, ChevronDown, ChevronRight, Play, Trash2, Edit, RotateCcw, CheckCircle, XCircle, AlertCircle, MinusCircle, Bookmark } from "lucide-react";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -194,6 +195,18 @@ export default function CommandList() {
 
     window.addEventListener('settings-changed', handleSettingsChange)
     return () => window.removeEventListener('settings-changed', handleSettingsChange)
+  }, [])
+
+  useEffect(() => {
+    const expandCommandId = sessionStorage.getItem('expandCommandId')
+    if (expandCommandId) {
+      setExpandedCommands(new Set([expandCommandId]))
+      setTimeout(() => {
+        const element = document.getElementById(expandCommandId)
+        element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+      sessionStorage.removeItem('expandCommandId')
+    }
   }, [])
 
   const totalPages = Math.ceil(commands.length / itemsPerPage);
@@ -520,29 +533,45 @@ export default function CommandList() {
                                 {command.description}
                               </p>
                               <div className="flex items-center gap-2">
-                                {expandedCommands.has(command.id) && (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const execution = getTerminalOutput(command.id);
-                                        if (execution?.status === 'running') {
-                                          handleStop(command.id);
-                                        } else {
-                                          handleExecute(command.id);
-                                        }
-                                      }}
-                                    >
-                                      {getTerminalOutput(command.id)?.status === 'running' ? (
-                                        <MinusCircle className="w-4 h-4 mr-1" />
-                                      ) : (
-                                        <Play className="w-4 h-4 mr-1" />
-                                      )}
-                                      {getTerminalOutput(command.id)?.status === 'running' ? '停止' : '执行'}
-                                    </Button>
-                                  </>
-                                )}
+                              {expandedCommands.has(command.id) && (
+                                    <>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const execution = getTerminalOutput(command.id);
+                                              if (execution?.status === 'running') {
+                                                handleStop(command.id);
+                                              } else {
+                                                handleExecute(command.id);
+                                              }
+                                            }}
+                                          >
+                                            {getTerminalOutput(command.id)?.status === 'running' ? (
+                                              <MinusCircle className="w-4 h-4 mr-1" />
+                                            ) : (
+                                              <Play className="w-4 h-4 mr-1" />
+                                            )}
+                                            {getTerminalOutput(command.id)?.status === 'running' ? '停止' : '执行'}
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="bg-gray-900 text-white border border-gray-700 shadow-lg">
+                                          <div className="max-w-xs">
+                                            <div className="font-medium mb-1">
+                                              {terminalMode === 'external' ? '📢 独立终端窗口模式' : '💻 应用内运行模式'}
+                                            </div>
+                                            <div className="text-xs text-gray-300">
+                                              {terminalMode === 'external' 
+                                                ? '命令将在独立终端窗口中执行，窗口弹出即代表完成'
+                                                : '命令将在应用内部执行，可以实时查看输出'}
+                                            </div>
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </>
+                                  )}
                                 {getStatusIcon(command.id)}
                                 {expandedCommands.has(command.id) ? (
                                   <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />

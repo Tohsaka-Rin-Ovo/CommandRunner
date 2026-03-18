@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { List, Bookmark, History, ChevronRight, Plus, Settings as SettingsIcon } from "lucide-react";
+import { List, Bookmark, History, ChevronRight, Plus, Settings as SettingsIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   ContextMenu,
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { usePresetStore } from "../store/presetStore";
+import { useExecutionStore } from "../store/executionStore";
 import Settings from "./Settings";
 
 export default function Root() {
@@ -22,6 +23,8 @@ export default function Root() {
   const draggingSource = usePresetStore((state) => state.draggingSource);
   const setDraggingSource = usePresetStore((state) => state.setDraggingSource);
   const updatePreset = usePresetStore((state) => state.updatePreset);
+  const activeCommands = useExecutionStore((state) => state.activeCommands);
+  const activePresets = useExecutionStore((state) => state.activePresets);
   const [expandedPreset, setExpandedPreset] = useState(false);
   const [showAddPresetDialog, setShowAddPresetDialog] = useState(false);
   const [newPresetName, setNewPresetName] = useState("");
@@ -48,6 +51,12 @@ export default function Root() {
     }
     return location.pathname.startsWith(path);
   };
+
+  const runningCount = useMemo(() => {
+    const runningCommands = Array.from(activeCommands.values()).filter(c => c.status === 'running').length;
+    const runningPresets = Array.from(activePresets.values()).filter(p => p.overallStatus === 'running').length;
+    return runningCommands + runningPresets;
+  }, [activeCommands, activePresets]);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     if (!useDefaultSort) return;
@@ -278,8 +287,27 @@ export default function Root() {
                 ))}
               </div>
             )}
-          </div>
-
+           </div>
+ 
+           <Link
+             to="/running"
+             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+               isActive("/running") && !isActive("/history")
+                 ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+                 : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+             }`}
+           >
+             <div className="relative">
+               <Loader2 className="w-5 h-5" />
+               {runningCount > 0 && (
+                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                   {runningCount > 9 ? '9+' : runningCount}
+                 </span>
+               )}
+             </div>
+             <span>正在运行</span>
+           </Link>
+ 
            <Link
             to="/history"
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${

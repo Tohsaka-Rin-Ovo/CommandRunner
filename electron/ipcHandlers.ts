@@ -133,6 +133,11 @@ export function setupIPCHandlers() {
     return executor.stopPreset(presetId)
   })
 
+  ipcMain.handle('mark-all-commands-completed', async () => {
+    markAllCommandsAsCompleted(mainWindow)
+    return true
+  })
+
   // Global Settings
   ipcMain.handle('get-global-settings', async () => {
     return DataManager.getGlobalSettings()

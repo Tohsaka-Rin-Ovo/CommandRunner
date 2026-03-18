@@ -197,29 +197,35 @@ export default function Settings({ onClose }: SettingsProps) {
                     onValueChange={(value: 'internal' | 'external') => setGlobalSettings({ ...globalSettings, terminalMode: value })}
                     className="mt-4 grid gap-4"
                   >
-                    <div className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${globalSettings.terminalMode === 'internal' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}>
+                    <Label
+                      htmlFor="terminal-internal"
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${globalSettings.terminalMode === 'internal' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                    >
                       <RadioGroupItem value="internal" id="terminal-internal" className="mt-1" />
                       <div className="grid gap-1.5 leading-none">
-                        <Label htmlFor="terminal-internal" className={`text-sm font-medium ${globalSettings.terminalMode === 'internal' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                        <div className={`text-sm font-medium ${globalSettings.terminalMode === 'internal' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}>
                           在应用内运行
-                        </Label>
+                        </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                           在应用内部显示命令输出，适合查看和调试
                         </p>
                       </div>
-                    </div>
+                    </Label>
 
-                    <div className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${globalSettings.terminalMode === 'external' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}>
+                    <Label
+                      htmlFor="terminal-external"
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${globalSettings.terminalMode === 'external' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                    >
                       <RadioGroupItem value="external" id="terminal-external" className="mt-1" />
                       <div className="grid gap-1.5 leading-none">
-                        <Label htmlFor="terminal-external" className={`text-sm font-medium ${globalSettings.terminalMode === 'external' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                        <div className={`text-sm font-medium ${globalSettings.terminalMode === 'external' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}>
                           弹出独立终端窗口
-                        </Label>
+                        </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                           在系统默认终端中运行，输出不显示在应用内
                         </p>
                       </div>
-                    </div>
+                    </Label>
                   </RadioGroup>
                 </div>
               </div>
