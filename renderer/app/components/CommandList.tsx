@@ -59,6 +59,8 @@ export default function CommandList() {
   const activeCommands = useExecutionStore((state) => state.activeCommands);
   const startCommand = useExecutionStore((state) => state.startCommand);
   const stopCommand = useExecutionStore((state) => state.stopCommand);
+  const updateCommandOutput = useExecutionStore((state) => state.updateCommandOutput);
+  const completeCommand = useExecutionStore((state) => state.completeCommand);
   const toggleFullOutput = useExecutionStore((state) => state.toggleFullOutput);
   const clearCommandOutput = useExecutionStore((state) => state.clearCommandOutput);
 
@@ -79,6 +81,7 @@ export default function CommandList() {
     status: 'success' | 'failed' | 'stopped';
   } | null>(null);
   const [terminalMode, setTerminalMode] = useState<'internal' | 'external'>('internal');
+  const [executionIds, setExecutionIds] = useState<Record<string, string>>({});
   const [newCommand, setNewCommand] = useState({
     content: "",
     description: "",
@@ -208,6 +211,26 @@ export default function CommandList() {
       sessionStorage.removeItem('expandCommandId')
     }
   }, [])
+
+  useEffect(() => {
+    const unsubscribeOutput = window.electronAPI?.onCommandOutput((data) => {
+      updateCommandOutput(`cmd-${data.commandId}`, data.line, data.type)
+    })
+
+    const unsubscribeComplete = window.electronAPI?.onCommandComplete((data) => {
+      completeCommand(`cmd-${data.commandId}`, {
+        success: data.success,
+        code: data.code,
+        output: data.output,
+        duration: data.duration,
+      })
+    })
+
+    return () => {
+      unsubscribeOutput?.()
+      unsubscribeComplete?.()
+    }
+  }, [updateCommandOutput, completeCommand])
 
   const totalPages = Math.ceil(commands.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -339,22 +362,29 @@ export default function CommandList() {
   };
 
   const getExecutionId = (commandId: string) => {
-    return `cmd-${commandId}`;
+    return executionIds[commandId] || `cmd-${commandId}`;
+  };
+
+  const getBackendExecutionId = (commandId: string) => {
+    const executionId = getExecutionId(commandId)
+    return executionId.startsWith('cmd-') ? executionId.slice(4) : executionId
   };
 
   const handleExecute = async (commandId: string) => {
     const command = commands.find(c => c.id === commandId);
     if (command) {
-      const executionId = getExecutionId(commandId);
-      await window.electronAPI.executeCommand(command.content, {});
+      const backendCommandId = await window.electronAPI.executeCommand(command.content, {});
+      const executionId = `cmd-${backendCommandId}`;
+      setExecutionIds((prev) => ({ ...prev, [commandId]: executionId }));
       startCommand(executionId, command.content);
       setExpandedCommands(new Set([commandId]));
     }
   };
 
   const handleStop = async (commandId: string) => {
+    const backendExecutionId = getBackendExecutionId(commandId);
     const executionId = getExecutionId(commandId);
-    await window.electronAPI.stopCommand(executionId);
+    await window.electronAPI.stopCommand(backendExecutionId);
     stopCommand(executionId);
   };
 

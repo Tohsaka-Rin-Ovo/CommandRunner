@@ -61,9 +61,12 @@ export const useExecutionStore = create<ExecutionStore>((set, _get) => ({
       const newCommands = new Map(state.activeCommands)
       const execution = newCommands.get(id)
       if (execution) {
-        execution.status = result.success ? 'success' : 'failed'
-        execution.duration = result.duration
-        execution.output = result.output
+        newCommands.set(id, {
+          ...execution,
+          status: result.success ? 'success' : 'failed',
+          duration: result.duration,
+          output: result.output,
+        })
       }
       return { activeCommands: newCommands }
     })
@@ -74,7 +77,10 @@ export const useExecutionStore = create<ExecutionStore>((set, _get) => ({
       const newCommands = new Map(state.activeCommands)
       const execution = newCommands.get(id)
       if (execution) {
-        execution.status = 'stopped'
+        newCommands.set(id, {
+          ...execution,
+          status: 'stopped',
+        })
       }
       return { activeCommands: newCommands }
     })
