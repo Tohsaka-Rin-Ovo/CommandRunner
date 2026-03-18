@@ -63,6 +63,7 @@ export interface PresetHistory {
 
 export interface CommandExecution {
   id: string;
+  sourceCommandId?: string;
   command: string;
   status: 'pending' | 'running' | 'success' | 'failed' | 'stopped';
   output: string;

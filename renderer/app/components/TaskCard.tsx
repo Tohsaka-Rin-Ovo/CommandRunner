@@ -1,4 +1,4 @@
-import { Terminal, Bookmark, Square, CheckCircle, XCircle, AlertCircle, RotateCcw, X } from 'lucide-react'
+import { Terminal, Bookmark, Square, CheckCircle, XCircle, AlertCircle, RotateCcw } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Progress } from './ui/progress'
@@ -33,17 +33,55 @@ const isRunning = (status: TaskItem['status']) => {
 const getStatusColor = (status: TaskItem['status']) => {
   switch (status) {
     case 'running':
-      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+      return 'border-blue-200 bg-blue-50/80 text-blue-700'
     case 'success':
     case 'completed':
-      return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+      return 'border-emerald-200 bg-emerald-50/80 text-emerald-700'
     case 'failed':
-      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+      return 'border-rose-200 bg-rose-50/80 text-rose-700'
     case 'stopped':
-      return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+      return 'border-amber-200 bg-amber-50/80 text-amber-700'
     default:
-      return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
+      return 'border-gray-200 bg-gray-50 text-gray-700'
   }
+}
+
+const getStatusAccent = (status: TaskItem['status']) => {
+  switch (status) {
+    case 'running':
+      return 'bg-blue-500'
+    case 'success':
+    case 'completed':
+      return 'bg-emerald-500'
+    case 'failed':
+      return 'bg-rose-500'
+    case 'stopped':
+      return 'bg-amber-500'
+    default:
+      return 'bg-gray-300'
+  }
+}
+
+const getTypeIconStyle = (task: TaskItem) => {
+  switch (task.status) {
+    case 'running':
+      return 'bg-blue-100 text-blue-600'
+    case 'success':
+    case 'completed':
+      return 'bg-emerald-100 text-emerald-600'
+    case 'failed':
+      return 'bg-rose-100 text-rose-600'
+    case 'stopped':
+      return 'bg-amber-100 text-amber-600'
+    default:
+      return task.type === 'command'
+        ? 'bg-slate-100 text-slate-600'
+        : 'bg-indigo-100 text-indigo-600'
+  }
+}
+
+const getTypeText = (task: TaskItem) => {
+  return task.type === 'command' ? '单条命令' : '命令预设'
 }
 
 const getStatusText = (status: TaskItem['status']) => {
@@ -69,15 +107,15 @@ const getStatusText = (status: TaskItem['status']) => {
 
 const getStatusStyle = (status: TaskItem['status']) => {
   if (status === 'running') {
-    return 'border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/10'
+    return 'border-gray-200 shadow-blue-100/40'
   } else if (status === 'success' || status === 'completed') {
-    return 'border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-900/10'
+    return 'border-gray-200 shadow-emerald-100/40'
   } else if (status === 'failed') {
-    return 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/10'
+    return 'border-gray-200 shadow-rose-100/40'
   } else if (status === 'stopped') {
-    return 'border-yellow-300 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/10'
+    return 'border-gray-200 shadow-amber-100/40'
   }
-  return 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+  return 'border-gray-200 shadow-black/5'
 }
 
 const formatDuration = (duration: number) => {
@@ -93,33 +131,59 @@ const formatDuration = (duration: number) => {
 }
 
 export function TaskCard({ task, onStop, onClick, onRemove }: TaskCardProps) {
+  const isCommand = task.type === 'command'
+
   return (
     <div 
-      className={`group p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md relative ${getStatusStyle(task.status)}`}
+      className={`group relative overflow-hidden rounded-xl border bg-white p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${getStatusStyle(task.status)}`}
       onClick={() => onClick(task)}
     >
       {/* 头部：图标 + 名称 + 状态 */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          {task.type === 'command' ? (
-            <Terminal className="w-5 h-5 text-blue-500" />
-          ) : (
-            <Bookmark className="w-5 h-5 text-purple-500" />
-          )}
-          <div>
-            <h3 className="font-medium text-gray-900 dark:text-gray-100">
-              {task.name}
-            </h3>
-            {task.description && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
-                {task.description}
-              </p>
+      <div className="mb-3 flex items-start justify-between gap-3 pl-2">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${getTypeIconStyle(task)}`}>
+            {task.type === 'command' ? (
+              <Terminal className="w-5 h-5" />
+            ) : (
+              <Bookmark className="w-5 h-5" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1 pt-0.5">
+            <div className="mb-1.5 flex items-center gap-2 min-w-0">
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                {getTypeText(task)}
+              </span>
+            </div>
+
+            {isCommand ? (
+              <>
+                <code className="block truncate rounded-md bg-gray-900 px-3 py-2 text-[12px] text-green-400 font-mono leading-relaxed">
+                  {task.name}
+                </code>
+                {task.description && (
+                  <p className="mt-2 line-clamp-1 text-sm text-gray-500">
+                    {task.description}
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <h3 className="truncate text-[15px] font-semibold text-gray-900">
+                  {task.name}
+                </h3>
+                {task.description && (
+                  <p className="mt-1 line-clamp-1 text-sm text-gray-500">
+                    {task.description}
+                  </p>
+                )}
+              </>
             )}
           </div>
         </div>
         
         {/* 状态标签 */}
-        <Badge className={getStatusColor(task.status)}>
+        <Badge className={`shrink-0 border px-2.5 py-1 text-[11px] font-medium ${getStatusColor(task.status)}`}>
+          <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${getStatusAccent(task.status)}`} />
           {task.status === 'running' ? (
             <RotateCcw className="w-3 h-3 mr-1 animate-spin" />
           ) : task.status === 'success' || task.status === 'completed' ? (
@@ -135,18 +199,26 @@ export function TaskCard({ task, onStop, onClick, onRemove }: TaskCardProps) {
       
       {/* 进度信息（仅预设） */}
       {task.type === 'preset' && task.progress && isRunning(task.status) && (
-        <div className="mb-3">
-          <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
+        <div className="mb-4 ml-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
+          <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
             <span>执行进度</span>
             <span>{task.progress.current} / {task.progress.total}</span>
           </div>
           <Progress value={(task.progress.current / task.progress.total) * 100} />
         </div>
       )}
+
+      {task.type === 'preset' && !isRunning(task.status) && task.progress && (
+        <div className="mb-4 ml-2 flex items-center gap-2 text-xs text-gray-500">
+          <span className="rounded-full bg-gray-100 px-2 py-1">
+            共 {task.progress.total} 条命令
+          </span>
+        </div>
+      )}
       
       {/* 底部：时长 + 停止/已读按钮 */}
-      <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-        <span className="text-sm text-gray-500 dark:text-gray-400">
+      <div className="ml-2 flex items-center justify-between border-t border-gray-100 pt-3">
+        <span className="text-sm text-gray-500">
           ⏱️ {formatDuration(task.duration)}
         </span>
         
@@ -155,7 +227,7 @@ export function TaskCard({ task, onStop, onClick, onRemove }: TaskCardProps) {
             <Button 
               variant="ghost" 
               size="sm"
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:bg-gray-100 hover:text-gray-700"
               onClick={(e) => {
                 e.stopPropagation()
                 onRemove(task.id, task.type)

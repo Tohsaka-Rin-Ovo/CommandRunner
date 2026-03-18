@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
-import { ChevronLeft, Search, Star, StarOff, Trash2, CheckCircle, XCircle, AlertCircle, Clock, Download, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Search, Star, StarOff, Trash2, CheckCircle, XCircle, AlertCircle, Clock, Download, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Input } from './ui/input'
@@ -19,6 +19,36 @@ import { useHistoryStore } from '../store/historyStore'
 import { usePresetHistoryStore } from '../store/presetHistoryStore'
 import type { History, PresetHistory } from '@shared/types'
 import { useCommandStore } from '../store/commandStore'
+
+const getHistoryStatusLabel = (status: 'success' | 'failed' | 'stopped') => {
+  if (status === 'success') return '成功'
+  if (status === 'failed') return '失败'
+  return '已停止'
+}
+
+const getHistoryStatusBadgeClass = (status: 'success' | 'failed' | 'stopped') => {
+  if (status === 'success') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  if (status === 'failed') return 'border-rose-200 bg-rose-50 text-rose-700'
+  return 'border-amber-200 bg-amber-50 text-amber-700'
+}
+
+const getHistoryStatusIconWrapClass = (status: 'success' | 'failed' | 'stopped') => {
+  if (status === 'success') return 'bg-emerald-100 text-emerald-600'
+  if (status === 'failed') return 'bg-rose-100 text-rose-600'
+  return 'bg-amber-100 text-amber-600'
+}
+
+const getHistoryStatusDotClass = (status: 'success' | 'failed' | 'stopped') => {
+  if (status === 'success') return 'bg-emerald-500'
+  if (status === 'failed') return 'bg-rose-500'
+  return 'bg-amber-500'
+}
+
+const getHistoryTypeBadgeClass = (type: 'preset' | 'single') => {
+  return type === 'preset'
+    ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+    : 'border-sky-200 bg-sky-50 text-sky-700'
+}
 
 export default function HistoryPage() {
   const navigate = useNavigate()
@@ -41,6 +71,9 @@ export default function HistoryPage() {
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false)
   const [showClearDialog, setShowClearDialog] = useState(false)
   const [showManageFavoritesDialog, setShowManageFavoritesDialog] = useState(false)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const handleScrollRef = useRef<(() => void) | null>(null)
 
   // 合并所有历史记录
   const allHistory = [
@@ -162,6 +195,40 @@ export default function HistoryPage() {
     setShowManageFavoritesDialog(false)
   }
 
+  const downloadTextFile = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExportSingleHistory = (item: History) => {
+    try {
+      const content = `命令历史记录\n==================\n命令: ${item.command}\n状态: ${item.status === 'success' ? '成功' : item.status === 'failed' ? '失败' : '已停止'}\n开始时间: ${new Date(item.startTime).toLocaleString('zh-CN')}\n结束时间: ${new Date(item.endTime).toLocaleString('zh-CN')}\n耗时: ${item.endTime - item.startTime}ms\n\n输出:\n${item.output || '暂无输出'}\n`
+      downloadTextFile(content, `command-history-${item.id}.log`)
+      toast.success('导出成功')
+    } catch (error) {
+      console.error('Failed to export single history:', error)
+      toast.error('导出失败')
+    }
+  }
+
+  const handleExportPresetHistory = (item: PresetHistory) => {
+    try {
+      const content = `预设执行历史\n==================\n预设名称: ${item.presetName}\n状态: ${item.status === 'success' ? '成功' : item.status === 'failed' ? '失败' : '已停止'}\n开始时间: ${new Date(item.startTime).toLocaleString('zh-CN')}\n结束时间: ${new Date(item.endTime).toLocaleString('zh-CN')}\n耗时: ${item.endTime - item.startTime}ms\n\n命令统计:\n- 总命令数: ${item.totalCommands}\n- 成功: ${item.successCount}\n- 失败: ${item.failedCount}\n- 中断: ${item.stoppedCount}\n\n详细命令输出:\n${item.commandResults.map((result, index) => `\n--- 命令 ${index + 1}: ${result.command}${result.description ? ` (${result.description})` : ''} ---\n状态: ${result.status}\n耗时: ${result.duration}ms\n输出:\n${result.output || '暂无输出'}\n`).join('\n')}`
+      downloadTextFile(content, `preset-history-${item.id}.log`)
+      toast.success('导出成功')
+    } catch (error) {
+      console.error('Failed to export preset history:', error)
+      toast.error('导出失败')
+    }
+  }
+
   const getFavoriteCount = () => {
     const singleCount = getFavoriteHistory().length
     const presetCount = getFavoritePresetHistory().length
@@ -186,21 +253,45 @@ export default function HistoryPage() {
     favorites: getFavoriteCount()
   }
 
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current
+    if (!scrollContainer) return
+
+    const handleScroll = () => {
+      scrollContainer.classList.add('scrolling')
+
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+
+      scrollTimeoutRef.current = setTimeout(() => {
+        scrollContainer.classList.remove('scrolling')
+      }, 1000)
+    }
+
+    handleScrollRef.current = handleScroll
+    scrollContainer.addEventListener('scroll', handleScroll)
+
+    return () => {
+      const currentContainer = scrollContainerRef.current
+      const currentHandler = handleScrollRef.current
+      if (currentContainer && currentHandler) {
+        currentContainer.removeEventListener('scroll', currentHandler)
+      }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+    }
+  }, [])
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* 头部 */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/presets')}
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              返回
-            </Button>
+        <div className="max-w-6xl mx-auto">
+          <div>
             <h1 className="text-xl font-semibold text-gray-900">历史命令</h1>
+            <p className="mt-1 text-sm text-gray-500">查看单个命令与命令预设的执行结果、输出和导出记录</p>
           </div>
         </div>
       </div>
@@ -319,52 +410,50 @@ export default function HistoryPage() {
       </div>
 
       {/* 历史记录列表 */}
-      <div className="flex-1 overflow-auto p-6">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto p-6 custom-scrollbar">
         <div className="max-w-6xl mx-auto">
           {sortedHistory.length === 0 ? (
-            <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-              <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">暂无历史记录</p>
+            <div className="bg-white rounded-xl border border-dashed border-gray-300 p-14 text-center shadow-sm">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
+                <Clock className="w-7 h-7" />
+              </div>
+              <p className="text-base font-medium text-gray-700">暂无历史记录</p>
+              <p className="mt-2 text-sm text-gray-500">执行命令或预设后，这里会自动保留结果与输出摘要</p>
             </div>
           ) : (
             <div className="grid gap-4">
               {sortedHistory.map((item) => (
                 <div
                   key={item.id}
-                  className={`bg-white rounded-lg border ${
-                    item.isFavorite ? 'border-yellow-400 shadow-md' : 'border-gray-200'
-                  } p-4 hover:shadow-md transition-all`}
+                  className={`rounded-xl border bg-white p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg ${
+                    item.isFavorite ? 'border-yellow-300 shadow-yellow-100/70' : 'border-gray-200 shadow-sm'
+                  }`}
                 >
                   {item.type === 'preset' ? (
                     // 预设历史卡片
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            item.status === 'success' ? 'bg-green-100' :
-                            item.status === 'failed' ? 'bg-red-100' :
-                            'bg-yellow-100'
-                          }`}>
-                            {item.status === 'success' && <CheckCircle className="w-5 h-5 text-green-600" />}
-                            {item.status === 'failed' && <XCircle className="w-5 h-5 text-red-600" />}
-                            {item.status === 'stopped' && <AlertCircle className="w-5 h-5 text-yellow-600" />}
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4 min-w-0 flex-1">
+                          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${getHistoryStatusIconWrapClass(item.status)}`}>
+                            {item.status === 'success' && <CheckCircle className="w-5 h-5" />}
+                            {item.status === 'failed' && <XCircle className="w-5 h-5" />}
+                            {item.status === 'stopped' && <AlertCircle className="w-5 h-5" />}
                           </div>
 
-                          <div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm font-medium text-gray-900">
-                                {highlightText(item.presetName, searchQuery)}
-                              </span>
-                              <Badge variant={item.status === 'success' ? 'default' : 'destructive'}>
-                                {item.status === 'success' ? '成功' :
-                                 item.status === 'failed' ? '失败' :
-                                 '已停止'}
-                              </Badge>
-                              <Badge variant="outline">
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              <Badge className={`border ${getHistoryTypeBadgeClass('preset')}`}>
                                 预设
                               </Badge>
+                              <Badge className={`border ${getHistoryStatusBadgeClass(item.status)}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${getHistoryStatusDotClass(item.status)}`} />
+                                {getHistoryStatusLabel(item.status)}
+                              </Badge>
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="text-[15px] font-semibold text-gray-900 truncate">
+                                {highlightText(item.presetName, searchQuery)}
+                            </div>
+                            <div className="mt-1 text-xs text-gray-500">
                               {new Date(item.startTime).toLocaleString('zh-CN')}
                             </div>
                           </div>
@@ -380,28 +469,28 @@ export default function HistoryPage() {
                         </Button>
                       </div>
 
-                      <div className="flex items-center gap-6 text-sm px-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500">命令:</span>
+                      <div className="grid gap-2 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 sm:grid-cols-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <span className="text-gray-500">命令</span>
                           <span className="font-medium text-gray-900">{item.totalCommands}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-green-600">
+                        <div className="flex items-center gap-2 text-sm text-emerald-600">
                           <CheckCircle className="w-4 h-4" />
                           <span>{item.successCount}</span>
                         </div>
                         {item.failedCount > 0 && (
-                          <div className="flex items-center gap-2 text-red-600">
+                          <div className="flex items-center gap-2 text-sm text-rose-600">
                             <XCircle className="w-4 h-4" />
                             <span>{item.failedCount}</span>
                           </div>
                         )}
                         {item.stoppedCount > 0 && (
-                          <div className="flex items-center gap-2 text-yellow-600">
+                          <div className="flex items-center gap-2 text-sm text-amber-600">
                             <AlertCircle className="w-4 h-4" />
                             <span>{item.stoppedCount}</span>
                           </div>
                         )}
-                        <div className="flex items-center gap-2 text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
                           <Clock className="w-4 h-4" />
                           <span>{item.endTime - item.startTime}ms</span>
                         </div>
@@ -418,6 +507,7 @@ export default function HistoryPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => handleExportPresetHistory(item)}
                         >
                           <Download className="w-4 h-4 mr-2" />
                           导出
@@ -437,34 +527,29 @@ export default function HistoryPage() {
                     </div>
                   ) : (
                     // 单个命令历史卡片
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            item.status === 'success' ? 'bg-green-100' :
-                            item.status === 'failed' ? 'bg-red-100' :
-                            'bg-yellow-100'
-                          }`}>
-                            {item.status === 'success' && <CheckCircle className="w-5 h-5 text-green-600" />}
-                            {item.status === 'failed' && <XCircle className="w-5 h-5 text-red-600" />}
-                            {item.status === 'stopped' && <AlertCircle className="w-5 h-5 text-yellow-600" />}
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4 min-w-0 flex-1">
+                          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${getHistoryStatusIconWrapClass(item.status)}`}>
+                            {item.status === 'success' && <CheckCircle className="w-5 h-5" />}
+                            {item.status === 'failed' && <XCircle className="w-5 h-5" />}
+                            {item.status === 'stopped' && <AlertCircle className="w-5 h-5" />}
                           </div>
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-1">
-                              <code className="text-sm font-mono text-gray-900 truncate">
-                                {highlightText(item.command, searchQuery)}
-                              </code>
-                              <Badge variant={item.status === 'success' ? 'default' : 'destructive'}>
-                                {item.status === 'success' ? '成功' :
-                                 item.status === 'failed' ? '失败' :
-                                 '已停止'}
-                              </Badge>
-                              <Badge variant="outline">
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              <Badge className={`border ${getHistoryTypeBadgeClass('single')}`}>
                                 单个命令
                               </Badge>
+                              <Badge className={`border ${getHistoryStatusBadgeClass(item.status)}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${getHistoryStatusDotClass(item.status)}`} />
+                                {getHistoryStatusLabel(item.status)}
+                              </Badge>
                             </div>
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <code className="block truncate rounded-md bg-gray-900 px-3 py-2 text-[12px] font-mono text-green-400">
+                                {highlightText(item.command, searchQuery)}
+                            </code>
+                            <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
                               <span>{new Date(item.startTime).toLocaleString('zh-CN')}</span>
                               <span>耗时: {item.endTime - item.startTime}ms</span>
                             </div>
@@ -488,6 +573,14 @@ export default function HistoryPage() {
                           onClick={() => navigate(`/history/command/${item.id}`)}
                         >
                           查看详情
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleExportSingleHistory(item)}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          导出
                         </Button>
                         {!item.isFavorite && (
                           <Button

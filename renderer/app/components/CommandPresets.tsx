@@ -104,7 +104,7 @@ export default function CommandPresets() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [terminalMode, setTerminalMode] = useState<'internal' | 'external'>('internal');
+  const [terminalMode, setTerminalMode] = useState<'internal' | 'external'>('external');
   const itemsPerPage = 8;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -813,44 +813,73 @@ export default function CommandPresets() {
         }
       }}>
         <DialogContent 
-          className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden"
+          className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden p-0 gap-0"
           onInteractOutside={(e) => e.preventDefault()}
         >
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="flex items-center gap-2">
-              添加预设
-              {draftPreset && <Badge variant="secondary" className="text-xs font-normal">草稿</Badge>}
+          <DialogHeader className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4">
+            <DialogTitle className="flex items-center gap-3 text-lg">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+                <Package className="w-4.5 h-4.5" />
+              </span>
+              <span className="flex flex-col gap-1">
+                <span className="flex items-center gap-2">
+                  添加预设
+                  {draftPreset && <Badge variant="secondary" className="text-xs font-normal">草稿</Badge>}
+                </span>
+              </span>
             </DialogTitle>
           </DialogHeader>
           
-          <div className="flex-1 overflow-y-auto px-6">
-            <div className="space-y-4 py-3">
-              <div className="space-y-2 mb-3">
-                <Label htmlFor="name" className="mb-2">预设名称</Label>
-                <Input
-                  id="name"
-                  value={newPreset.name}
-                  onChange={(e) => setNewPreset({ ...newPreset, name: e.target.value })}
-                  placeholder="例如：开发环境启动"
-                  autoFocus={false}
-                  onFocus={handleInputFocus}
-                />
-              </div>
-               <div className="space-y-2 mb-3">
-                 <Label htmlFor="description" className="mb-2">描述（可选）</Label>
-                <Textarea
-                  id="description"
-                  value={newPreset.description}
-                  onChange={(e) => setNewPreset({ ...newPreset, description: e.target.value })}
-                  placeholder="简要描述这个预设的用途"
-                  onFocus={handleInputFocus}
-                />
-              </div>
-              
-              {/* Tab 切换：选择命令 */}
-              <Tabs defaultValue="library" className="w-full">
-                {/* Tab 切换器 */}
-                <TabsList className="grid w-full grid-cols-2 h-10 bg-gray-100 p-0.75 rounded-lg">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+            <div className="space-y-3.5">
+                <div className="rounded-2xl border border-gray-200 bg-white p-4.5 shadow-sm">
+                  <div className="mb-3.5 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">基础信息</h3>
+                      <p className="mt-1 text-xs text-gray-500">先给这个预设起一个清晰名字，再补充说明。</p>
+                    </div>
+                    <Badge variant="outline" className="text-xs">步骤 1</Badge>
+                  </div>
+
+                  <div className="space-y-3.5">
+                    <div className="space-y-2">
+                      <Label htmlFor="name" className="mb-2">预设名称</Label>
+                      <Input
+                        id="name"
+                        value={newPreset.name}
+                        onChange={(e) => setNewPreset({ ...newPreset, name: e.target.value })}
+                        placeholder="例如：开发环境启动"
+                        autoFocus={false}
+                        onFocus={handleInputFocus}
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description" className="mb-2">描述（可选）</Label>
+                      <Textarea
+                        id="description"
+                        value={newPreset.description || ''}
+                        onChange={(e) => setNewPreset({ ...newPreset, description: e.target.value })}
+                        placeholder="简要描述这个预设的用途"
+                        onFocus={handleInputFocus}
+                        className="min-h-[88px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-white p-4.5 shadow-sm">
+                  <div className="mb-3.5 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">命令组成</h3>
+                      <p className="mt-1 text-xs text-gray-500">从命令库勾选，或者现场输入新的命令。</p>
+                    </div>
+                    <Badge variant="outline" className="text-xs">步骤 2</Badge>
+                  </div>
+
+                  <Tabs defaultValue="library" className="w-full">
+                 {/* Tab 切换器 */}
+                <TabsList className="grid w-full grid-cols-2 h-10 bg-gray-100 p-0.75 rounded-xl">
                   <TabsTrigger 
                     value="library"
                     className="data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
@@ -870,10 +899,10 @@ export default function CommandPresets() {
                     </div>
                   </TabsTrigger>
                 </TabsList>
-                
+                 
                 {/* Tab 内容：从命令库选择 */}
-                <TabsContent value="library" className="mt-2">
-                  <div className="space-y-4">
+                <TabsContent value="library" className="mt-3.5">
+                  <div className="space-y-3.5">
                     {/* 搜索框 */}
                     <div className="relative">
                       <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -886,8 +915,8 @@ export default function CommandPresets() {
                     </div>
                     
                     {/* 命令列表（复选框） */}
-                    <ScrollArea className="h-[200px] pr-4">
-                      <div className="space-y-2 border rounded-lg p-3">
+                    <ScrollArea className="h-[260px] pr-4">
+                      <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50/70 p-3">
                         {commands
                           .filter(cmd =>
                             cmd.content.toLowerCase().includes(addDialogSearchQuery.toLowerCase()) ||
@@ -929,7 +958,7 @@ export default function CommandPresets() {
                 </TabsContent>
                 
                 {/* Tab 内容：输入新命令 */}
-                <TabsContent value="new" className="mt-2 space-y-4">
+                <TabsContent value="new" className="mt-3.5 space-y-3.5">
                   <div>
                     <Label htmlFor="new-command-content" className="mb-2">命令内容</Label>
                     <Textarea
@@ -937,7 +966,7 @@ export default function CommandPresets() {
                       placeholder="例如: npm install react"
                       value={addDialogNewCommand.content}
                       onChange={(e) => setAddDialogNewCommand({ ...addDialogNewCommand, content: e.target.value })}
-                      className="font-mono min-h-[60px]"
+                      className="font-mono min-h-[88px]"
                       onFocus={handleInputFocus}
                     />
                   </div>
@@ -964,6 +993,7 @@ export default function CommandPresets() {
                 </div>
                   <Button
                     type="button"
+                    variant="outline"
                     onClick={() => {
                       if (addDialogNewCommand.content.trim()) {
                         setNewPreset({
@@ -991,12 +1021,12 @@ export default function CommandPresets() {
                   </Button>
                 </TabsContent>
               </Tabs>
-              
-              {/* Selected commands moved to floating popup */}
+
+                </div>
             </div>
           </div>
           
-          <DialogFooter className="flex-shrink-0 px-6 pb-6">
+          <DialogFooter className="flex-shrink-0 border-t border-gray-200 bg-white px-6 py-3.5">
             <Button variant="outline" onClick={handleCloseAddDialog}>
               取消
             </Button>
@@ -1016,41 +1046,71 @@ export default function CommandPresets() {
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent 
-          className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden"
+          className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden p-0 gap-0"
           onInteractOutside={(e) => e.preventDefault()}
         >
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>编辑预设</DialogTitle>
+          <DialogHeader className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4">
+            <DialogTitle className="flex items-center gap-3 text-lg">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+                <Edit className="w-4.5 h-4.5" />
+              </span>
+              <span className="flex flex-col gap-1">
+                <span>编辑预设</span>
+                <span className="text-sm font-normal text-gray-500">调整预设名称、说明和命令组成，保存后会立即生效。</span>
+              </span>
+            </DialogTitle>
           </DialogHeader>
           {editingPreset && (
             <>
-              <div className="flex-1 overflow-y-auto px-6">
-                <div className="space-y-4 py-3">
-                <div className="space-y-2 mb-3">
-                  <Label htmlFor="edit-name" className="mb-2">预设名称</Label>
-                  <Input
-                    id="edit-name"
-                    value={editingPreset.name}
-                    onChange={(e) => setEditingPreset(prev => prev ? { ...prev, name: e.target.value } : null)}
-                    autoFocus={false}
-                    onFocus={handleInputFocus}
-                  />
-                </div>
-               <div className="space-y-2 mb-3">
-                 <Label htmlFor="description" className="mb-2">描述（可选）</Label>
-                 <Textarea
-                   id="description"
-                   value={newPreset.description}
-                   onChange={(e) => setNewPreset({ ...newPreset, description: e.target.value })}
-                   placeholder="简要描述这个预设的用途"
-                   onFocus={handleInputFocus}
-                 />
-               </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+                <div className="space-y-3.5">
+                    <div className="rounded-2xl border border-gray-200 bg-white p-4.5 shadow-sm">
+                      <div className="mb-3.5 flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-900">基础信息</h3>
+                          <p className="mt-1 text-xs text-gray-500">保留原有结构，只更新你想修改的内容。</p>
+                        </div>
+                        <Badge variant="outline" className="text-xs">基础区</Badge>
+                      </div>
+
+                      <div className="space-y-3.5">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-name" className="mb-2">预设名称</Label>
+                          <Input
+                            id="edit-name"
+                            value={editingPreset.name}
+                            onChange={(e) => setEditingPreset(prev => prev ? { ...prev, name: e.target.value } : null)}
+                            autoFocus={false}
+                            onFocus={handleInputFocus}
+                            className="h-11"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="description" className="mb-2">描述（可选）</Label>
+                          <Textarea
+                            id="description"
+                            value={editingPreset.description || ''}
+                            onChange={(e) => setEditingPreset(prev => prev ? { ...prev, description: e.target.value } : null)}
+                            placeholder="简要描述这个预设的用途"
+                            onFocus={handleInputFocus}
+                            className="min-h-[88px]"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   
-                  {/* Tab 切换：选择命令 */}
-                  <Tabs defaultValue="library" className="w-full">
+                    <div className="rounded-2xl border border-gray-200 bg-white p-4.5 shadow-sm">
+                      <div className="mb-3.5 flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-900">命令组成</h3>
+                          <p className="mt-1 text-xs text-gray-500">可以继续从命令库勾选，或追加新的命令内容。</p>
+                        </div>
+                        <Badge variant="outline" className="text-xs">命令区</Badge>
+                      </div>
+
+                      <Tabs defaultValue="library" className="w-full">
                     {/* Tab 切换器 */}
-                    <TabsList className="grid w-full grid-cols-2 h-10 bg-gray-100 p-0.75 rounded-lg">
+                    <TabsList className="grid w-full grid-cols-2 h-10 bg-gray-100 p-0.75 rounded-xl">
                       <TabsTrigger 
                         value="library"
                         className="data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
@@ -1072,8 +1132,8 @@ export default function CommandPresets() {
                     </TabsList>
                     
                      {/* Tab 内容：从命令库选择 */}
-                    <TabsContent value="library" className="mt-3">
-                      <div className="space-y-4">
+                    <TabsContent value="library" className="mt-3.5">
+                      <div className="space-y-3.5">
                         {/* 搜索框 */}
                         <div className="relative">
                           <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -1086,8 +1146,8 @@ export default function CommandPresets() {
                         </div>
                         
                         {/* 命令列表（复选框） */}
-                        <ScrollArea className="h-[200px] pr-4">
-                          <div className="space-y-2 border rounded-lg p-3">
+                        <ScrollArea className="h-[260px] pr-4">
+                          <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50/70 p-3">
                             {commands
                               .filter(cmd =>
                                 cmd.content.toLowerCase().includes(editDialogSearchQuery.toLowerCase()) ||
@@ -1133,7 +1193,7 @@ export default function CommandPresets() {
                     </TabsContent>
                     
                      {/* Tab 内容：输入新命令 */}
-                    <TabsContent value="new" className="mt-2 space-y-4">
+                    <TabsContent value="new" className="mt-3.5 space-y-3.5">
                       <div>
                         <Label htmlFor="edit-new-command-content" className="mb-2">命令内容</Label>
                         <Textarea
@@ -1141,7 +1201,7 @@ export default function CommandPresets() {
                           placeholder="例如: npm install react"
                           value={editDialogNewCommand.content}
                           onChange={(e) => setEditDialogNewCommand({ ...editDialogNewCommand, content: e.target.value })}
-                          className="font-mono min-h-[60px]"
+                          className="font-mono min-h-[88px]"
                           onFocus={handleInputFocus}
                         />
                       </div>
@@ -1168,6 +1228,7 @@ export default function CommandPresets() {
                       </div>
                       <Button
                         type="button"
+                        variant="outline"
                         onClick={() => {
                           if (editDialogNewCommand.content.trim()) {
                             setEditingPreset(prev => {
@@ -1198,13 +1259,13 @@ export default function CommandPresets() {
                       </Button>
                     </TabsContent>
                   </Tabs>
-                  
-                  {/* Selected commands moved to floating popup */}
+
+                    </div>
                 </div>
               </div>
             </>
           )}
-          <DialogFooter className="flex-shrink-0 px-6 pb-6">
+          <DialogFooter className="flex-shrink-0 border-t border-gray-200 bg-white px-6 py-3.5">
             <Button variant="outline" onClick={() => {
               setShowEditDialog(false);
               setEditDialogSearchQuery('');

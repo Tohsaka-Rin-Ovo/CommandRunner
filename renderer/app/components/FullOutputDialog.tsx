@@ -21,7 +21,7 @@ export function FullOutputContent({
   status,
   onCopy,
   onSave,
-  terminalMode = 'internal',
+  terminalMode = 'external',
 }: FullOutputContentProps) {
   const handleCopy = async () => {
     if (onCopy) {
@@ -109,7 +109,7 @@ export function FullOutputDialog({
   output,
   duration,
   status,
-  terminalMode = 'internal',
+  terminalMode = 'external',
 }: {
   open: boolean
   onClose: () => void

@@ -80,8 +80,7 @@ export default function CommandList() {
     duration: number;
     status: 'success' | 'failed' | 'stopped';
   } | null>(null);
-  const [terminalMode, setTerminalMode] = useState<'internal' | 'external'>('internal');
-  const [executionIds, setExecutionIds] = useState<Record<string, string>>({});
+  const [terminalMode, setTerminalMode] = useState<'internal' | 'external'>('external');
   const [newCommand, setNewCommand] = useState({
     content: "",
     description: "",
@@ -362,7 +361,13 @@ export default function CommandList() {
   };
 
   const getExecutionId = (commandId: string) => {
-    return executionIds[commandId] || `cmd-${commandId}`;
+    for (const [executionId, execution] of activeCommands.entries()) {
+      if (execution.sourceCommandId === commandId) {
+        return executionId;
+      }
+    }
+
+    return `cmd-${commandId}`;
   };
 
   const getBackendExecutionId = (commandId: string) => {
@@ -375,8 +380,7 @@ export default function CommandList() {
     if (command) {
       const backendCommandId = await window.electronAPI.executeCommand(command.content, {});
       const executionId = `cmd-${backendCommandId}`;
-      setExecutionIds((prev) => ({ ...prev, [commandId]: executionId }));
-      startCommand(executionId, command.content);
+      startCommand(executionId, command.content, commandId);
       setExpandedCommands(new Set([commandId]));
     }
   };

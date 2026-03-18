@@ -25,11 +25,55 @@ function App() {
   const updateCommandOutput = useExecutionStore((state) => state.updateCommandOutput)
   const completeCommand = useExecutionStore((state) => state.completeCommand)
   const updatePresetProgress = useExecutionStore((state) => state.updatePresetProgress)
+  const updatePresetCommandExecution = useExecutionStore((state) => state.updatePresetCommandExecution)
+  const fetchHistoryAfterWrite = useHistoryStore((state) => state.fetchHistory)
+  const fetchPresetHistoryAfterWrite = usePresetHistoryStore((state) => state.fetchPresetHistory)
   
   const getCommand = useCallback(
     (id: string) => useExecutionStore.getState().activeCommands.get(id),
     [],
   )
+
+  const buildPresetHistory = useCallback((presetId: string) => {
+    const presets = usePresetStore.getState().presets
+    const preset = presets.find(p => p.id === presetId)
+    const presetExecution = useExecutionStore.getState().activePresets.get(presetId)
+
+    if (!preset || !presetExecution) return null
+
+    const commandResults = preset.commands.map((presetCommand) => {
+      const execution = presetExecution.commands[presetCommand.id]
+      return {
+        commandId: presetCommand.id,
+        command: presetCommand.content,
+        description: presetCommand.description,
+        status: (execution?.status ?? 'stopped') as 'success' | 'failed' | 'stopped',
+        output: execution?.output ?? '',
+        duration: execution?.duration ?? 0,
+      }
+    })
+
+    const startTimes = Object.values(presetExecution.commands).map(cmd => cmd.startTime).filter(Boolean)
+    const historyStatus: 'success' | 'failed' | 'stopped' = presetExecution.overallStatus === 'completed'
+      ? 'success'
+      : presetExecution.overallStatus === 'failed'
+      ? 'failed'
+      : 'stopped'
+
+    return {
+      presetId,
+      presetName: preset.name,
+      status: historyStatus,
+      startTime: startTimes.length > 0 ? Math.min(...startTimes) : Date.now(),
+      endTime: Date.now(),
+      totalCommands: preset.commands.length,
+      successCount: commandResults.filter(r => r.status === 'success').length,
+      failedCount: commandResults.filter(r => r.status === 'failed').length,
+      stoppedCount: commandResults.filter(r => r.status === 'stopped').length,
+      isFavorite: false,
+      commandResults,
+    }
+  }, [])
 
   useEffect(() => {
     fetchCommands()
@@ -45,29 +89,52 @@ function App() {
     }
 
     const cleanupOutput = window.electronAPI.onCommandOutput((data) => {
-      updateCommandOutput(data.commandId, data.line, data.type)
+      updateCommandOutput(`cmd-${data.commandId}`, data.line, data.type)
     })
 
     const cleanupComplete = window.electronAPI.onCommandComplete((data) => {
-      completeCommand(data.commandId, {
+      const executionId = `cmd-${data.commandId}`
+
+      completeCommand(executionId, {
         success: data.success,
         code: data.code,
         output: data.output,
         duration: data.duration,
       })
 
-      const execution = getCommand(data.commandId)
+      const execution = getCommand(executionId)
       if (execution) {
+        const presetMatch = data.commandId.match(/^(.*)-(\d+)$/)
         const status: 'success' | 'failed' | 'stopped' = data.success ? 'success' : 'failed'
-        const historyItem = {
-          command: execution.command,
-          commandId: data.commandId,
-          status,
-          startTime: execution.startTime,
-          endTime: Date.now(),
-          output: data.output,
+        if (!presetMatch) {
+          const historyItem = {
+            command: execution.command,
+            commandId: execution.sourceCommandId,
+            status,
+            startTime: execution.startTime,
+            endTime: Date.now(),
+            output: data.output,
+          }
+          window.electronAPI.addHistory(historyItem).then(() => {
+            fetchHistoryAfterWrite()
+          })
         }
-        window.electronAPI.addHistory(historyItem)
+
+        if (presetMatch) {
+          const [, presetId, indexString] = presetMatch
+          const index = Number(indexString)
+          const preset = usePresetStore.getState().presets.find(p => p.id === presetId)
+          const presetCommand = preset?.commands[index]
+
+          if (presetCommand) {
+            updatePresetCommandExecution(presetId, presetCommand.id, {
+              ...execution,
+              status,
+              output: data.output,
+              duration: data.duration,
+            })
+          }
+        }
       }
     })
 
@@ -80,37 +147,32 @@ function App() {
         commandStatus: data.commandStatus,
       })
 
-      // 当预设执行完成时，创建预设历史记录
-      if (data.completed && data.presetId) {
-        const presets = usePresetStore.getState().presets
-        const preset = presets.find(p => p.id === data.presetId)
-        const presetExecution = useExecutionStore.getState().activePresets.get(data.presetId)
+      if (data.presetId && data.commandStatus === 'stopped') {
+        const preset = usePresetStore.getState().presets.find(p => p.id === data.presetId)
+        const currentCommand = preset?.commands[data.currentIndex - 1]
+        if (currentCommand) {
+          updatePresetCommandExecution(data.presetId, currentCommand.id, {
+            id: currentCommand.id,
+            sourceCommandId: currentCommand.id,
+            command: currentCommand.content,
+            status: 'stopped',
+            output: '',
+            outputLines: [],
+            displayLines: [],
+            showFull: false,
+            duration: 0,
+            startTime: Date.now(),
+          })
+        }
+      }
 
-        if (preset && presetExecution) {
-          const commandResults = Object.entries(presetExecution.commands).map(([commandId, execution]) => ({
-            commandId,
-            command: execution.command,
-            description: preset.commands.find(c => c.id === commandId)?.description,
-            status: execution.status,
-            output: execution.output,
-            duration: execution.duration,
-          }))
-
-          const historyItem = {
-            presetId: data.presetId,
-            presetName: preset.name,
-            status: presetExecution.overallStatus as 'success' | 'failed' | 'stopped',
-            startTime: Math.min(...Object.values(presetExecution.commands).map(cmd => cmd.startTime)),
-            endTime: Date.now(),
-            totalCommands: preset.commands.length,
-            successCount: commandResults.filter(r => r.status === 'success').length,
-            failedCount: commandResults.filter(r => r.status === 'failed').length,
-            stoppedCount: commandResults.filter(r => r.status === 'stopped').length,
-            isFavorite: false,
-            commandResults,
-          }
-
-          window.electronAPI.addPresetHistory(historyItem)
+      // 当预设执行完成/失败/中断时，创建预设历史记录
+      if (data.presetId && (data.completed || data.commandStatus === 'failed' || data.commandStatus === 'stopped')) {
+        const historyItem = buildPresetHistory(data.presetId)
+        if (historyItem) {
+          window.electronAPI.addPresetHistory(historyItem).then(() => {
+            fetchPresetHistoryAfterWrite()
+          })
         }
       }
     })
@@ -120,7 +182,16 @@ function App() {
       cleanupComplete()
       cleanupProgress()
     }
-  }, [updateCommandOutput, completeCommand, updatePresetProgress, getCommand])
+  }, [
+    updateCommandOutput,
+    completeCommand,
+    updatePresetProgress,
+    getCommand,
+    buildPresetHistory,
+    updatePresetCommandExecution,
+    fetchHistoryAfterWrite,
+    fetchPresetHistoryAfterWrite,
+  ])
 
   return (
     <>

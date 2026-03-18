@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft, Save, FolderOpen, Play, FolderOpen as FolderIcon, Edit3, Info, Moon, Sun, Terminal } from 'lucide-react'
 import { Button } from './ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog'
 import { Switch } from './ui/switch'
 import { Label } from './ui/label'
 import { Input } from './ui/input'
@@ -28,16 +38,26 @@ const sections: Section[] = [
 ]
 
 export default function Settings({ onClose }: SettingsProps) {
-  const [globalSettings, setGlobalSettings] = useState({
+  const defaultSettings = {
     theme: 'light' as 'light' | 'dark',
     stopOnError: false,
     showFullOutput: true,
     confirmBeforeExecute: false,
     workingDir: '',
     editorCommand: '',
-    terminalMode: 'internal' as 'internal' | 'external',
+    terminalMode: 'external' as 'internal' | 'external',
+  }
+
+  const [globalSettings, setGlobalSettings] = useState({
+    ...defaultSettings,
+  })
+  const [savedSettings, setSavedSettings] = useState({
+    ...defaultSettings,
   })
   const [activeSection, setActiveSection] = useState<SectionId>('execution')
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
+
+  const hasUnsavedChanges = JSON.stringify(globalSettings) !== JSON.stringify(savedSettings)
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -45,12 +65,14 @@ export default function Settings({ onClose }: SettingsProps) {
         if (window.electronAPI?.getGlobalSettings) {
           const settings = await window.electronAPI.getGlobalSettings()
           setGlobalSettings(settings)
+          setSavedSettings(settings)
         } else {
           // 如果 electronAPI 不可用，从 localStorage 读取
           const savedSettings = localStorage.getItem('globalSettings')
           if (savedSettings) {
             const parsed = JSON.parse(savedSettings)
             setGlobalSettings(parsed)
+            setSavedSettings(parsed)
           }
         }
       } catch (error) {
@@ -89,6 +111,7 @@ export default function Settings({ onClose }: SettingsProps) {
       } else {
         localStorage.setItem('globalSettings', JSON.stringify(globalSettings))
       }
+      setSavedSettings(globalSettings)
       window.dispatchEvent(new Event('settings-changed'))
       toast.success('设置已保存')
       onClose()
@@ -105,12 +128,21 @@ export default function Settings({ onClose }: SettingsProps) {
     }
   }
 
+  const handleTopBack = () => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedDialog(true)
+      return
+    }
+
+    onClose()
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-900 flex flex-col">
       {/* 顶部栏 */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">全局设置</h1>
-        <Button variant="ghost" size="sm" onClick={onClose}>
+        <Button variant="ghost" size="sm" onClick={handleTopBack}>
           <ChevronLeft className="w-5 h-5 text-gray-900 dark:text-gray-100" />
         </Button>
       </div>
@@ -198,21 +230,6 @@ export default function Settings({ onClose }: SettingsProps) {
                     className="mt-4 grid gap-4"
                   >
                     <Label
-                      htmlFor="terminal-internal"
-                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${globalSettings.terminalMode === 'internal' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
-                    >
-                      <RadioGroupItem value="internal" id="terminal-internal" className="mt-1" />
-                      <div className="grid gap-1.5 leading-none">
-                        <div className={`text-sm font-medium ${globalSettings.terminalMode === 'internal' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}>
-                          在应用内运行
-                        </div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          在应用内部显示命令输出，适合查看和调试
-                        </p>
-                      </div>
-                    </Label>
-
-                    <Label
                       htmlFor="terminal-external"
                       className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${globalSettings.terminalMode === 'external' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
                     >
@@ -223,6 +240,21 @@ export default function Settings({ onClose }: SettingsProps) {
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                           在系统默认终端中运行，输出不显示在应用内
+                        </p>
+                      </div>
+                    </Label>
+
+                    <Label
+                      htmlFor="terminal-internal"
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${globalSettings.terminalMode === 'internal' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                    >
+                      <RadioGroupItem value="internal" id="terminal-internal" className="mt-1" />
+                      <div className="grid gap-1.5 leading-none">
+                        <div className={`text-sm font-medium ${globalSettings.terminalMode === 'internal' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                          在应用内运行
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          在应用内部显示命令输出，适合查看和调试
                         </p>
                       </div>
                     </Label>
@@ -351,6 +383,21 @@ export default function Settings({ onClose }: SettingsProps) {
           保存设置
         </Button>
       </div>
+
+      <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>当前更改尚未保存</AlertDialogTitle>
+            <AlertDialogDescription>
+              你刚刚修改的设置信息还没有保存，现在返回将丢失这些更改。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>仍要返回</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSave}>保存更改</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

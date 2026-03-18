@@ -18,10 +18,9 @@ export const router = createBrowserRouter([
       { path: 'presets', Component: CommandPresets },
       { path: 'presets/:presetId', Component: PresetDetail },
       { path: 'running', Component: RunningTasks },
-      { path: 'history', Component: HistoryPage, children: [
-        { path: 'preset/:id', Component: PresetHistoryDetail },
-        { path: 'command/:id', Component: CommandHistoryDetail },
-      ]},
+      { path: 'history', Component: HistoryPage },
+      { path: 'history/preset/:id', Component: PresetHistoryDetail },
+      { path: 'history/command/:id', Component: CommandHistoryDetail },
     ],
   },
 ])

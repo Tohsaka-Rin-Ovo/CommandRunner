@@ -123,7 +123,7 @@ export default function PresetDetail() {
     showFullOutput: true,
     confirmBeforeExecute: false
   })
-  const [terminalMode, setTerminalMode] = useState<'internal' | 'external'>('internal')
+  const [terminalMode, setTerminalMode] = useState<'internal' | 'external'>('external')
   
   // 加载全局设置
   useEffect(() => {
@@ -592,26 +592,26 @@ export default function PresetDetail() {
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* 头部信息区 */}
-      <div className="bg-white border-b border-gray-200 px-6 py-5">
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-                <Database className="w-8 h-8 text-blue-600" />
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-4 min-w-0">
+              <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <Database className="w-7 h-7 text-blue-600" />
               </div>
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-2xl font-semibold text-gray-900">
+              <div className="min-w-0">
+                <div className="flex items-center gap-3 mb-1.5 flex-wrap">
+                  <h1 className="text-xl font-semibold text-gray-900 truncate">
                     {preset.name}
                   </h1>
-                  <Badge variant="outline" className="text-sm">
+                  <Badge variant="outline" className="text-xs">
                     {preset.commands.length} 个命令
                   </Badge>
                 </div>
                 {preset.description && (
-                  <p className="text-sm text-gray-600 mb-2">{preset.description}</p>
+                  <p className="text-sm text-gray-600 mb-1.5">{preset.description}</p>
                 )}
-                <div className="flex items-center gap-4 text-sm text-gray-500">
+                <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
                   <span className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
                     创建于: {new Date(preset.createdAt).toLocaleString('zh-CN')}
@@ -620,7 +620,7 @@ export default function PresetDetail() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Button
                 variant="outline"
                 size="sm"
@@ -652,13 +652,13 @@ export default function PresetDetail() {
       </div>
 
       {/* 执行控制栏 */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-6 py-3">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             {activePreset?.overallStatus === 'running' ? (
               <Button
                 size="lg"
-                className="bg-green-500 hover:bg-green-500 text-white h-12 cursor-wait"
+                className="bg-[rgb(0,188,125)] hover:bg-[rgb(0,188,125)] text-white h-10 cursor-wait"
                 disabled={true}
               >
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -669,7 +669,7 @@ export default function PresetDetail() {
                   <TooltipTrigger asChild>
                     <Button
                       size="lg"
-                      className="bg-green-500 hover:bg-green-600 text-white h-12"
+                      className="bg-[rgb(0,188,125)] hover:bg-[rgb(0,168,112)] text-white h-10"
                       onClick={handleReExecutePreset}
                       disabled={preset.commands.length === 0}
                     >
@@ -691,22 +691,22 @@ export default function PresetDetail() {
                   </TooltipContent>
                 </Tooltip>
               ) : activePreset?.overallStatus === 'failed' ? (
-               <Button
-                 size="lg"
-                 className="bg-red-600 hover:bg-red-700 text-white h-12"
-                 onClick={() => setShowFailedConfirmDialog(true)}
-                 disabled={preset.commands.length === 0}
-               >
+                <Button
+                  size="lg"
+                  className="bg-red-600 hover:bg-red-700 text-white h-10"
+                  onClick={() => setShowFailedConfirmDialog(true)}
+                  disabled={preset.commands.length === 0}
+                >
                  <AlertCircle className="w-5 h-5 mr-2" />
                  执行失败
                </Button>
              ) : activePreset?.overallStatus === 'stopped' ? (
-               <Button
-                 size="lg"
-                 className="bg-yellow-500 hover:bg-yellow-600 text-white h-12"
-                 onClick={() => setShowStoppedConfirmDialog(true)}
-                 disabled={preset.commands.length === 0}
-               >
+                <Button
+                  size="lg"
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white h-10"
+                  onClick={() => setShowStoppedConfirmDialog(true)}
+                  disabled={preset.commands.length === 0}
+                >
                  <AlertCircle className="w-5 h-5 mr-2" />
                  执行中断
                </Button>
@@ -715,7 +715,7 @@ export default function PresetDetail() {
                   <TooltipTrigger asChild>
                     <Button
                       size="lg"
-                      className="bg-green-500 hover:bg-green-600 text-white h-12"
+                      className="bg-[rgb(0,188,125)] hover:bg-[rgb(0,168,112)] text-white h-10"
                       onClick={() => {
                         if (settings.confirmBeforeExecute && !activePreset) {
                           setShowExecuteConfirmDialog(true)
@@ -747,7 +747,7 @@ export default function PresetDetail() {
             <Button
               size="lg"
               variant={activePreset?.overallStatus === 'running' ? "destructive" : "outline"}
-              className={`h-12 ${activePreset?.overallStatus !== 'running' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`h-10 ${activePreset?.overallStatus !== 'running' ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={handleStopPreset}
               disabled={activePreset?.overallStatus !== 'running'}
             >
@@ -759,7 +759,7 @@ export default function PresetDetail() {
               variant="outline"
               size="lg"
               onClick={handleRefresh}
-              className="h-12"
+              className="h-10"
               disabled={isRefreshing}
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -767,11 +767,11 @@ export default function PresetDetail() {
             </Button>
 
             {activePreset && activePreset.total > 0 && (
-              <div className="flex-1 flex items-center gap-3">
+              <div className="min-w-[240px] flex-1 flex items-center gap-3">
                 <Progress 
                   value={(activePreset.currentIndex / activePreset.total) * 100} 
                   className={`h-2 flex-1 ${
-                    activePreset.overallStatus === 'completed' ? '[&>[role=progressbar]]:bg-green-500' :
+                    activePreset.overallStatus === 'completed' ? '[&>[role=progressbar]]:bg-[rgb(0,188,125)]' :
                     activePreset.overallStatus === 'failed' ? '[&>[role=progressbar]]:bg-red-500' :
                     activePreset.overallStatus === 'stopped' ? '[&>[role=progressbar]]:bg-yellow-500' :
                     ''
@@ -784,7 +784,7 @@ export default function PresetDetail() {
             )}
 
             {activePreset && (activePreset.completed || activePreset.currentIndex > 0) && (
-              <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-3 text-sm flex-wrap">
                 {getSuccessCount() > 0 && (
                   <span className="text-green-600 flex items-center gap-1">
                     <CheckCircle className="w-4 h-4" />
@@ -810,18 +810,18 @@ export default function PresetDetail() {
       </div>
 
       {/* 主内容区 */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-5">
         <div className="max-w-6xl mx-auto">
           <Tabs defaultValue="commands" className="w-full">
-            <TabsList className="mb-4">
+            <TabsList className="mb-3">
               <TabsTrigger value="commands">命令列表</TabsTrigger>
               <TabsTrigger value="history">执行历史</TabsTrigger>
               <TabsTrigger value="settings">设置</TabsTrigger>
             </TabsList>
 
             {/* 命令列表标签页 */}
-            <TabsContent value="commands" className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
+            <TabsContent value="commands" className="space-y-3">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   {isBatchSelectMode && (
                     <>
@@ -886,7 +886,7 @@ export default function PresetDetail() {
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {preset.commands
                     .sort((a, b) => (a.order || 0) - (b.order || 0))
                     .map((command, index) => (
@@ -898,8 +898,8 @@ export default function PresetDetail() {
                             : 'border-gray-200'
                         }`}
                       >
-                        <div className="p-4">
-                          <div className="flex items-start gap-4">
+                        <div className="p-3.5">
+                          <div className="flex items-start gap-3">
                             {isBatchSelectMode && (
                               <Checkbox
                                 checked={selectedCommandIds.has(command.id)}
@@ -908,7 +908,7 @@ export default function PresetDetail() {
                               />
                             )}
                             <div className="flex-1 min-w-0">
-                              <code className="block bg-gray-900 text-green-400 px-4 py-3 rounded font-mono text-sm mb-3 overflow-x-auto">
+                              <code className="block bg-gray-900 text-green-400 px-4 py-2.5 rounded font-mono text-sm mb-2.5 overflow-x-auto">
                                 {command.content}
                               </code>
                               <div className="flex items-center justify-between gap-4">
@@ -993,20 +993,20 @@ export default function PresetDetail() {
                         
                         {/* 展开的详情部分 */}
                         {expandedCommands.has(command.id) && (
-                          <div className="border-t border-gray-100">
-                            <div className="px-4 pb-4 pt-4">
-                              <h4 className="font-medium text-sm text-gray-900 mb-2">
-                                命令介绍
-                              </h4>
+                            <div className="border-t border-gray-100">
+                             <div className="px-4 pb-3 pt-3">
+                               <h4 className="font-medium text-sm text-gray-900 mb-2">
+                                 命令介绍
+                               </h4>
                               <p className="text-sm text-gray-600 leading-relaxed">
                                 {command.details || '暂无详细介绍'}
                               </p>
                             </div>
                             
-                            {/* 命令执行输出 */}
-                            {getCommandExecution(command.id) && (
-                              <div className="px-4 pb-4">
-                                <TerminalOutput
+                             {/* 命令执行输出 */}
+                             {getCommandExecution(command.id) && (
+                               <div className="px-4 pb-3">
+                                 <TerminalOutput
                                   output={getCommandExecution(command.id)!.output}
                                   outputLines={getCommandExecution(command.id)!.outputLines}
                                   displayLines={getCommandExecution(command.id)!.displayLines}
@@ -1056,8 +1056,8 @@ export default function PresetDetail() {
             </TabsContent>
 
             {/* 执行历史标签页 */}
-            <TabsContent value="history" className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
+            <TabsContent value="history" className="space-y-3">
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-medium text-gray-700">
                   执行历史记录
                 </h3>
@@ -1187,7 +1187,7 @@ export default function PresetDetail() {
             </TabsContent>
 
             {/* 设置标签页 */}
-            <TabsContent value="settings" className="space-y-4">
+            <TabsContent value="settings" className="space-y-3">
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 className="text-sm font-medium text-gray-900 mb-4">预设执行设置</h3>
                 

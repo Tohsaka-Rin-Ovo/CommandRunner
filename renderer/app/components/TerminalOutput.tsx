@@ -32,7 +32,7 @@ export function TerminalOutput({
   onClear,
   onClose,
   onToggleFull,
-  terminalMode = 'internal',
+  terminalMode = 'external',
 }: TerminalOutputProps) {
   const outputRef = useRef<HTMLDivElement>(null)
   const lastLineRef = useRef<HTMLDivElement>(null)

@@ -24,7 +24,7 @@ export default function RunningTasks() {
     
     // 添加所有命令任务
     activeCommands.forEach((execution, id) => {
-      const commandId = id.split('-')[1]
+      const commandId = execution.sourceCommandId
       const command = commands.find(c => c.id === commandId)
       taskList.push({
         id: id,
@@ -72,7 +72,8 @@ export default function RunningTasks() {
   const handleStop = async (id: string, type: 'command' | 'preset') => {
     try {
       if (type === 'command') {
-        await window.electronAPI?.stopCommand(id)
+        const backendExecutionId = id.startsWith('cmd-') ? id.slice(4) : id
+        await window.electronAPI?.stopCommand(backendExecutionId)
         stopCommand(id)
         toast.success('命令已停止')
       } else {

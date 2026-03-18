@@ -428,7 +428,7 @@ export function getGlobalSettings(): any {
     confirmBeforeExecute: false,
     workingDir: '',
     editorCommand: '',
-    terminalMode: 'internal',
+    terminalMode: 'external',
   })
 }
 

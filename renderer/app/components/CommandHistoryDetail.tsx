@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ChevronLeft, CheckCircle, XCircle, AlertCircle, Copy, Download } from 'lucide-react'
 import { Button } from './ui/button'
@@ -10,7 +11,45 @@ export default function CommandHistoryDetail() {
   const navigate = useNavigate()
   const { id } = useParams()
   const history = useHistoryStore((state) => state.history)
-  const deleteHistoryItem = useHistoryStore((state) => state.deleteHistoryItem)
+  const fetchHistory = useHistoryStore((state) => state.fetchHistory)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const handleScrollRef = useRef<(() => void) | null>(null)
+
+  useEffect(() => {
+    fetchHistory()
+  }, [fetchHistory])
+
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current
+    if (!scrollContainer) return
+
+    const handleScroll = () => {
+      scrollContainer.classList.add('scrolling')
+
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+
+      scrollTimeoutRef.current = setTimeout(() => {
+        scrollContainer.classList.remove('scrolling')
+      }, 1000)
+    }
+
+    handleScrollRef.current = handleScroll
+    scrollContainer.addEventListener('scroll', handleScroll)
+
+    return () => {
+      const currentContainer = scrollContainerRef.current
+      const currentHandler = handleScrollRef.current
+      if (currentContainer && currentHandler) {
+        currentContainer.removeEventListener('scroll', currentHandler)
+      }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const historyItem = history.find(h => h.id === id)
 
@@ -76,7 +115,7 @@ export default function CommandHistoryDetail() {
       </div>
 
       {/* 主内容 */}
-      <div className="flex-1 overflow-auto p-6">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto p-6 custom-scrollbar">
         <div className="max-w-6xl mx-auto space-y-6">
           {/* 概览信息 */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
