@@ -11,6 +11,7 @@ export interface FullOutputContentProps {
   status: 'success' | 'failed' | 'stopped'
   onCopy?: () => void
   onSave?: () => void
+  terminalMode?: 'internal' | 'external'
 }
 
 export function FullOutputContent({
@@ -20,6 +21,7 @@ export function FullOutputContent({
   status,
   onCopy,
   onSave,
+  terminalMode = 'internal',
 }: FullOutputContentProps) {
   const handleCopy = async () => {
     if (onCopy) {
@@ -85,7 +87,15 @@ export function FullOutputContent({
             lineHeight: '1.6',
           }}
         >
-          {output || '暂无输出'}
+          {terminalMode === 'external' ? (
+            <div className="text-gray-300 text-center py-8">
+              <div className="text-4xl mb-4">📡</div>
+              <div className="text-base mb-2">命令正在独立终端窗口中运行</div>
+              <div className="text-sm text-gray-400">请查看终端窗口获取输出</div>
+            </div>
+          ) : (
+            output || '暂无输出'
+          )}
         </pre>
       </div>
     </ScrollArea>
@@ -99,6 +109,7 @@ export function FullOutputDialog({
   output,
   duration,
   status,
+  terminalMode = 'internal',
 }: {
   open: boolean
   onClose: () => void
@@ -106,6 +117,7 @@ export function FullOutputDialog({
   output: string
   duration: number
   status: 'success' | 'failed' | 'stopped'
+  terminalMode?: 'internal' | 'external'
 }) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -139,6 +151,7 @@ export function FullOutputDialog({
           output={output}
           duration={duration}
           status={status}
+          terminalMode={terminalMode}
         />
       </DialogContent>
     </Dialog>

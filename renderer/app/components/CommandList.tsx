@@ -77,6 +77,7 @@ export default function CommandList() {
     duration: number;
     status: 'success' | 'failed' | 'stopped';
   } | null>(null);
+  const [terminalMode, setTerminalMode] = useState<'internal' | 'external'>('internal');
   const [newCommand, setNewCommand] = useState({
     content: "",
     description: "",
@@ -161,6 +162,39 @@ export default function CommandList() {
     fetchCommands();
     fetchPresets();
   }, [fetchCommands, fetchPresets]);
+
+  useEffect(() => {
+    const loadTerminalMode = async () => {
+      try {
+        if (window.electronAPI?.getGlobalSettings) {
+          const settings = await window.electronAPI.getGlobalSettings()
+          setTerminalMode(settings?.terminalMode || 'internal')
+        }
+      } catch (error) {
+        console.error('Failed to load terminal mode:', error)
+      }
+    }
+    loadTerminalMode()
+  }, [])
+
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      const loadTerminalMode = async () => {
+        try {
+          if (window.electronAPI?.getGlobalSettings) {
+            const settings = await window.electronAPI.getGlobalSettings()
+            setTerminalMode(settings?.terminalMode || 'internal')
+          }
+        } catch (error) {
+          console.error('Failed to reload terminal mode:', error)
+        }
+      }
+      loadTerminalMode()
+    }
+
+    window.addEventListener('settings-changed', handleSettingsChange)
+    return () => window.removeEventListener('settings-changed', handleSettingsChange)
+  }, [])
 
   const totalPages = Math.ceil(commands.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -546,6 +580,7 @@ export default function CommandList() {
                             status={getTerminalOutput(command.id)!.status}
                             duration={getTerminalOutput(command.id)!.duration}
                             command={getTerminalOutput(command.id)!.command}
+                            terminalMode={terminalMode}
                             onCopy={() => {}}
                             onSave={() => {}}
                             onClear={() => clearCommandOutput(getExecutionId(command.id))}
@@ -820,6 +855,7 @@ export default function CommandList() {
         output={fullOutputData?.output || ""}
         duration={fullOutputData?.duration || 0}
         status={fullOutputData?.status || 'success'}
+        terminalMode={terminalMode}
       />
 
       {/* 添加到预设对话框 */}

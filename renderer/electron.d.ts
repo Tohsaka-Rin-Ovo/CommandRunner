@@ -40,12 +40,28 @@ export interface ElectronAPI {
   stopCommand: (commandId: string) => Promise<void>
   stopPreset: (presetId: string) => Promise<void>
 
+  // File Dialog
+  selectDirectory: () => Promise<string | null>
+
   // Settings
   getGlobalSettings: () => Promise<{
+    theme: 'light' | 'dark'
     stopOnError: boolean
     showFullOutput: boolean
     confirmBeforeExecute: boolean
+    workingDir?: string
+    editorCommand?: string
+    terminalMode: 'internal' | 'external'
   }>
+  saveGlobalSettings: (settings: {
+    theme: 'light' | 'dark'
+    stopOnError: boolean
+    showFullOutput: boolean
+    confirmBeforeExecute: boolean
+    workingDir?: string
+    editorCommand?: string
+    terminalMode: 'internal' | 'external'
+  }) => Promise<void>
 
   // Events
   onCommandOutput: (callback: (data: { commandId: string, line: string, type: 'stdout' | 'stderr' }) => void) => () => void

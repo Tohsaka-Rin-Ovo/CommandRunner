@@ -1,4 +1,4 @@
-import { ipcMain, app } from 'electron'
+import { ipcMain, app, dialog, BrowserWindow } from 'electron'
 import * as DataManager from './dataManager'
 import { CommandExecutor } from './commandExecutor'
 
@@ -111,14 +111,18 @@ export function setupIPCHandlers() {
   ipcMain.handle('execute-command', async (_event, command, options) => {
     const commandId = Date.now().toString()
     const workingDir = options?.workingDir || app.getPath('home')
-    
-    executor.execute(commandId, command, workingDir)
+    const settings = DataManager.getGlobalSettings()
+    const terminalMode = settings?.terminalMode || 'internal'
+
+    executor.execute(commandId, command, workingDir, terminalMode)
     return commandId
   })
 
   ipcMain.handle('execute-preset', async (_event, presetId, commandIds) => {
     const commands = DataManager.getPresetCommands(presetId, commandIds)
-    return executor.executePreset(presetId, commands, app.getPath('home'))
+    const settings = DataManager.getGlobalSettings()
+    const terminalMode = settings?.terminalMode || 'internal'
+    return executor.executePreset(presetId, commands, app.getPath('home'), terminalMode)
   })
 
   ipcMain.handle('stop-command', async (_event, commandId) => {
@@ -127,5 +131,40 @@ export function setupIPCHandlers() {
 
   ipcMain.handle('stop-preset', async (_event, presetId) => {
     return executor.stopPreset(presetId)
+  })
+
+  // Global Settings
+  ipcMain.handle('get-global-settings', async () => {
+    return DataManager.getGlobalSettings()
+  })
+
+  ipcMain.handle('save-global-settings', async (_event, settings) => {
+    return DataManager.saveGlobalSettings(settings)
+  })
+
+  // File Dialog
+  ipcMain.handle('select-directory', async (event) => {
+    console.log('[IPC] select-directory called')
+    console.log('[IPC] Event sender:', event.sender)
+
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openDirectory'],
+        title: '选择工作目录',
+      })
+
+      console.log('[IPC] Dialog result:', result)
+
+      if (result.canceled || result.filePaths.length === 0) {
+        console.log('[IPC] Dialog canceled or no file selected')
+        return null
+      }
+
+      console.log('[IPC] Selected directory:', result.filePaths[0])
+      return result.filePaths[0]
+    } catch (error) {
+      console.error('[IPC] Error in select-directory:', error)
+      throw error
+    }
   })
 }

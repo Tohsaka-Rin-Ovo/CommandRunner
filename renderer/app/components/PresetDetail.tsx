@@ -122,6 +122,7 @@ export default function PresetDetail() {
     showFullOutput: true,
     confirmBeforeExecute: false
   })
+  const [terminalMode, setTerminalMode] = useState<'internal' | 'external'>('internal')
   
   // 加载全局设置
   useEffect(() => {
@@ -130,12 +131,33 @@ export default function PresetDetail() {
         if (window.electronAPI?.getGlobalSettings) {
           const settings = await window.electronAPI.getGlobalSettings()
           setGlobalSettings(settings)
+          setTerminalMode(settings?.terminalMode || 'internal')
         }
       } catch (error) {
         console.error('Failed to load global settings:', error)
       }
     }
     loadGlobalSettings()
+  }, [])
+
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      const loadGlobalSettings = async () => {
+        try {
+          if (window.electronAPI?.getGlobalSettings) {
+            const settings = await window.electronAPI.getGlobalSettings()
+            setGlobalSettings(settings)
+            setTerminalMode(settings?.terminalMode || 'internal')
+          }
+        } catch (error) {
+          console.error('Failed to reload global settings:', error)
+        }
+      }
+      loadGlobalSettings()
+    }
+
+    window.addEventListener('settings-changed', handleSettingsChange)
+    return () => window.removeEventListener('settings-changed', handleSettingsChange)
   }, [])
   
   // 加载历史记录
@@ -968,6 +990,7 @@ export default function PresetDetail() {
                                   status={getCommandExecution(command.id)!.status}
                                   duration={getCommandExecution(command.id)!.duration}
                                   command={getCommandExecution(command.id)!.command}
+                                  terminalMode={terminalMode}
                                   onCopy={() => {}}
                                   onSave={() => {}}
                                   onClear={() => {}}
@@ -1563,6 +1586,7 @@ export default function PresetDetail() {
           output={fullOutputData.output}
           duration={fullOutputData.duration}
           status={fullOutputData.status}
+          terminalMode={terminalMode}
         />
       )}
 

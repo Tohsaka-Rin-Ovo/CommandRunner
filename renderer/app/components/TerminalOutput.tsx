@@ -16,6 +16,7 @@ interface TerminalOutputProps {
   onClear: () => void
   onClose: () => void
   onToggleFull: () => void
+  terminalMode?: 'internal' | 'external'
 }
 
 export function TerminalOutput({
@@ -31,6 +32,7 @@ export function TerminalOutput({
   onClear,
   onClose,
   onToggleFull,
+  terminalMode = 'internal',
 }: TerminalOutputProps) {
   const outputRef = useRef<HTMLDivElement>(null)
   const lastLineRef = useRef<HTMLDivElement>(null)
@@ -188,16 +190,29 @@ export function TerminalOutput({
           lineHeight: '1.6',
         }}
       >
-        {displayLines.length === 0 ? (
-          <div className="text-gray-500 text-center py-8">暂无输出</div>
+        {terminalMode === 'external' ? (
+          <div className="text-gray-300 text-center py-8">
+            <div className="text-4xl mb-4">📡</div>
+            <div className="text-base mb-2">命令正在独立终端窗口中运行</div>
+            <div className="text-sm text-gray-400">请查看终端窗口获取输出</div>
+            {status === 'running' && (
+              <div className="mt-4 text-blue-400 animate-pulse">执行中...</div>
+            )}
+          </div>
         ) : (
-          displayLines.map((line, index) => (
-            <div key={index} ref={index === displayLines.length - 1 ? lastLineRef : null}>
-              {line}
-            </div>
-          ))
+          <>
+            {displayLines.length === 0 ? (
+              <div className="text-gray-500 text-center py-8">暂无输出</div>
+            ) : (
+              displayLines.map((line, index) => (
+                <div key={index} ref={index === displayLines.length - 1 ? lastLineRef : null}>
+                  {line}
+                </div>
+              ))
+            )}
+            {status === 'running' && <div className="animate-pulse">_</div>}
+          </>
         )}
-        {status === 'running' && <div className="animate-pulse">_</div>}
       </div>
     </div>
   )

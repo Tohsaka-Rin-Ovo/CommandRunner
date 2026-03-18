@@ -7,7 +7,54 @@ export class CommandExecutor {
   private presetStopRequested: Map<string, boolean> = new Map()
   private commandStatuses: Map<string, 'success' | 'failed' | 'stopped'> = new Map()
 
-  execute(commandId: string, command: string, workingDir: string): void {
+  execute(commandId: string, command: string, workingDir: string, terminalMode: 'internal' | 'external' = 'internal'): void {
+    const startTime = Date.now()
+
+    if (terminalMode === 'external') {
+      const platform = process.platform
+      let childProcess: ChildProcess
+
+      if (platform === 'win32') {
+        childProcess = spawn('cmd.exe', ['/c', 'start', 'cmd', '/k', command], {
+          cwd: workingDir,
+          detached: true,
+          shell: false
+        })
+      } else if (platform === 'darwin') {
+        const appleScript = `tell application "Terminal" to do script "${command.replace(/"/g, '\\"')}" in front window`
+        childProcess = spawn('osascript', ['-e', appleScript], {
+          cwd: workingDir,
+          detached: true
+        })
+      } else {
+        const terminals = ['gnome-terminal', 'xterm', 'konsole', 'xfce4-terminal', 'mate-terminal']
+        for (const term of terminals) {
+          try {
+            childProcess = spawn(term, ['-e', command], {
+              cwd: workingDir,
+              detached: true
+            })
+            break
+          } catch (e) {
+            continue
+          }
+        }
+      }
+
+      childProcess?.unref()
+
+      setTimeout(() => {
+        this.sendComplete(commandId, {
+          success: true,
+          code: 0,
+          output: '命令在独立终端中执行',
+          duration: Date.now() - startTime
+        })
+      }, 100)
+
+      return
+    }
+
     const childProcess = spawn(command, {
       shell: true,
       cwd: workingDir,
@@ -17,7 +64,6 @@ export class CommandExecutor {
     this.activeCommands.set(commandId, childProcess)
 
     let output = ''
-    let startTime = Date.now()
 
     childProcess.stdout?.on('data', (data) => {
       const line = data.toString()
@@ -60,7 +106,7 @@ export class CommandExecutor {
     })
   }
 
-  async executePreset(presetId: string, commands: string[], workingDir: string): Promise<void> {
+  async executePreset(presetId: string, commands: string[], workingDir: string, terminalMode: 'internal' | 'external' = 'internal'): Promise<void> {
     this.presetQueues.set(presetId, commands)
     this.presetStopRequested.set(presetId, false)
 
@@ -85,7 +131,7 @@ export class CommandExecutor {
         commandId
       })
 
-      this.execute(commandId, commands[i], workingDir)
+      this.execute(commandId, commands[i], workingDir, terminalMode)
 
       await new Promise<void>((resolve) => {
         const timeout = setTimeout(() => {

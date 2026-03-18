@@ -40,6 +40,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopCommand: (commandId: string) => ipcRenderer.invoke('stop-command', commandId),
   stopPreset: (presetId: string) => ipcRenderer.invoke('stop-preset', presetId),
 
+  // Global Settings
+  getGlobalSettings: () => ipcRenderer.invoke('get-global-settings'),
+  saveGlobalSettings: (settings: any) => ipcRenderer.invoke('save-global-settings', settings),
+
+  // File Dialog
+  selectDirectory: () => ipcRenderer.invoke('select-directory'),
+
   // Events
   onCommandOutput: (callback: (data: any) => void) => {
     const listener = (_event: any, data: any) => callback(data)

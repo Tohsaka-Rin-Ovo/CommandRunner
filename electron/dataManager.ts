@@ -410,3 +410,28 @@ export function cancelAllPresetHistoryFavorites(): boolean {
   const updatedHistory = history.map(h => ({ ...h, isFavorite: false }))
   return writeFile('presetHistory.json', updatedHistory)
 }
+
+// Global Settings
+export function getGlobalSettings(): any {
+  return readFile<{
+    theme: 'light' | 'dark'
+    stopOnError: boolean
+    showFullOutput: boolean
+    confirmBeforeExecute: boolean
+    workingDir?: string
+    editorCommand?: string
+    terminalMode: 'internal' | 'external'
+  }>('globalSettings.json', {
+    theme: 'light',
+    stopOnError: false,
+    showFullOutput: true,
+    confirmBeforeExecute: false,
+    workingDir: '',
+    editorCommand: '',
+    terminalMode: 'internal',
+  })
+}
+
+export function saveGlobalSettings(settings: any): boolean {
+  return writeFile('globalSettings.json', settings)
+}

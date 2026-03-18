@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { List, Bookmark, History, ChevronRight, Plus } from "lucide-react";
+import { List, Bookmark, History, ChevronRight, Plus, Settings as SettingsIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   ContextMenu,
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { usePresetStore } from "../store/presetStore";
+import Settings from "./Settings";
 
 export default function Root() {
   const location = useLocation();
@@ -27,6 +28,7 @@ export default function Root() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -278,7 +280,7 @@ export default function Root() {
             )}
           </div>
 
-          <Link
+           <Link
             to="/history"
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               isActive("/history")
@@ -290,11 +292,25 @@ export default function Root() {
             <span>历史命令记录</span>
           </Link>
         </nav>
+
+        {/* 固定在底部的设置按钮 */}
+        <div className="p-4 border-t border-gray-200">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-700 hover:bg-gray-100"
+          >
+            <SettingsIcon className="w-5 h-5" />
+            <span>设置</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto">
         <Outlet />
       </div>
+
+      {/* 设置对话框 */}
+      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
 
       <Dialog open={showAddPresetDialog} onOpenChange={setShowAddPresetDialog}>
         <DialogContent>

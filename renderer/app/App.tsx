@@ -9,6 +9,14 @@ import { usePresetHistoryStore } from './store/presetHistoryStore'
 import { useExecutionStore } from './store/executionStore'
 
 function App() {
+  // 初始化主题
+  useEffect(() => {
+    const theme = localStorage.getItem('theme') as 'light' | 'dark' | null
+    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark')
+    }
+  }, [])
+
   const fetchCommands = useCommandStore((state) => state.fetchCommands)
   const fetchPresets = usePresetStore((state) => state.fetchPresets)
   const fetchHistory = useHistoryStore((state) => state.fetchHistory)
