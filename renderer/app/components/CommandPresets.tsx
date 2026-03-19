@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown, Search, Save, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -60,6 +60,9 @@ const PRESET_ICONS = {
 } as const;
 
 export default function CommandPresets() {
+  const navigate = useNavigate();
+  const SEARCH_STORAGE_KEY = 'command-presets-search-query'
+  const PAGE_STORAGE_KEY = 'command-presets-current-page'
   const location = useLocation();
   const presets = usePresetStore((state) => state.presets);
   const loading = usePresetStore((state) => state.loading);
@@ -103,6 +106,9 @@ export default function CommandPresets() {
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [preserveSearchOnNavigation, setPreserveSearchOnNavigation] = useState(false);
+  const [preservePageOnNavigation, setPreservePageOnNavigation] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -122,18 +128,82 @@ export default function CommandPresets() {
   }, [fetchPresets]);
   
   useEffect(() => {
-    const loadTerminalMode = async () => {
+    const loadGlobalSettings = async () => {
       try {
         if (window.electronAPI?.getGlobalSettings) {
           const settings = await window.electronAPI.getGlobalSettings()
+          const nextPreserveSearch = settings?.preserveSearchOnNavigation ?? false
+          const nextPreservePage = settings?.preservePageOnNavigation ?? false
+
           setTerminalMode(settings?.terminalMode || 'internal')
+          setPreserveSearchOnNavigation(nextPreserveSearch)
+          setPreservePageOnNavigation(nextPreservePage)
+
+          if (nextPreserveSearch) {
+            const savedSearchQuery = sessionStorage.getItem(SEARCH_STORAGE_KEY) || ''
+            if (savedSearchQuery) {
+              setSearchQuery(savedSearchQuery)
+              setIsSearchOpen(true)
+            }
+          } else {
+            sessionStorage.removeItem(SEARCH_STORAGE_KEY)
+          }
+
+          if (nextPreservePage) {
+            const savedPage = sessionStorage.getItem(PAGE_STORAGE_KEY)
+            if (savedPage) {
+              setCurrentPage(Math.max(1, Number(savedPage) || 1))
+            }
+          } else {
+            sessionStorage.removeItem(PAGE_STORAGE_KEY)
+          }
+
+          setSettingsLoaded(true)
         }
       } catch (error) {
-        console.error('Failed to load terminal mode:', error)
+        console.error('Failed to load global settings:', error)
+        setSettingsLoaded(true)
       }
     }
-    loadTerminalMode()
+
+    loadGlobalSettings()
+
+    const handleSettingsChange = () => {
+      loadGlobalSettings()
+    }
+
+    window.addEventListener('settings-changed', handleSettingsChange)
+
+    return () => {
+      window.removeEventListener('settings-changed', handleSettingsChange)
+    }
   }, [])
+
+  useEffect(() => {
+    if (!settingsLoaded) return
+
+    if (!preserveSearchOnNavigation) {
+      sessionStorage.removeItem(SEARCH_STORAGE_KEY)
+      return
+    }
+
+    if (searchQuery.trim()) {
+      sessionStorage.setItem(SEARCH_STORAGE_KEY, searchQuery)
+    } else {
+      sessionStorage.removeItem(SEARCH_STORAGE_KEY)
+    }
+  }, [preserveSearchOnNavigation, searchQuery, settingsLoaded])
+
+  useEffect(() => {
+    if (!settingsLoaded) return
+
+    if (!preservePageOnNavigation) {
+      sessionStorage.removeItem(PAGE_STORAGE_KEY)
+      return
+    }
+
+    sessionStorage.setItem(PAGE_STORAGE_KEY, String(currentPage))
+  }, [preservePageOnNavigation, currentPage, settingsLoaded])
   
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -463,6 +533,12 @@ export default function CommandPresets() {
   const endIndex = startIndex + itemsPerPage;
   const currentPresets = sortedPresets.slice(startIndex, endIndex);
 
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
   const handleDragStart = (e: React.DragEvent, id: string) => {
     if (!useDefaultSort) return;
     setIsDragging(true);
@@ -577,11 +653,14 @@ export default function CommandPresets() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`h-8 w-8 rounded-full text-gray-400 transition-all hover:text-gray-600 hover:bg-gray-100 ${isSearchOpen ? 'bg-gray-100 text-gray-600' : ''}`}
+                  className={`relative h-8 w-8 rounded-full transition-all hover:text-gray-600 hover:bg-gray-100 ${searchQuery.trim() ? 'search-active-pulse bg-blue-50 text-blue-600 ring-1 ring-blue-200 hover:bg-blue-100' : isSearchOpen ? 'bg-gray-100 text-gray-600' : 'text-gray-400'}`}
                   onClick={() => setIsSearchOpen((prev) => !prev)}
                   title="搜索预设"
                 >
                   <Search className="w-4 h-4" />
+                  {searchQuery.trim() && (
+                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-blue-500" />
+                  )}
                 </Button>
                 {isSearchOpen && (
                   <div className="absolute left-0 top-10 z-20 w-72 rounded-xl border border-gray-200 bg-white p-2.5 shadow-lg">
@@ -625,11 +704,32 @@ export default function CommandPresets() {
               <p className="text-sm text-gray-600">快速访问常用命令集合</p>
               <div className="flex items-center gap-3 text-xs text-gray-500">
                 <span className="bg-gray-100 px-2 py-0.5 rounded-full">
-                  共 {sortedPresets.length} 个预设
+                  共 {presets.length} 个预设
                 </span>
-                <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
-                  {Array.from(activePresets.values()).filter(p => p.overallStatus === 'running').length} 个运行中
-                </span>
+                <button
+                  type="button"
+                  className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600 transition-colors hover:bg-blue-100 hover:text-blue-700"
+                  onClick={() => navigate('/running')}
+                  title="查看正在运行页面"
+                >
+                  {Array.from(activePresets.values()).filter(p => p.overallStatus === 'running').length} 个正在运行记录
+                </button>
+                {searchQuery.trim() && (
+                  <span className="group inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                    <span>匹配 {filteredPresets.length} 个结果</span>
+                    <button
+                      type="button"
+                      className="hidden rounded-full p-0.5 text-blue-500 transition-colors hover:bg-blue-200 hover:text-blue-700 group-hover:inline-flex"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setCurrentPage(1);
+                      }}
+                      title="清空搜索"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
               </div>
             </div>
           </div>

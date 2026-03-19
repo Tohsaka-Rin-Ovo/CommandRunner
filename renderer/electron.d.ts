@@ -49,6 +49,8 @@ export interface ElectronAPI {
     stopOnError: boolean
     showFullOutput: boolean
     confirmBeforeExecute: boolean
+    preserveSearchOnNavigation: boolean
+    preservePageOnNavigation: boolean
     workingDir?: string
     editorCommand?: string
     terminalMode: 'internal' | 'external'
@@ -58,6 +60,8 @@ export interface ElectronAPI {
     stopOnError: boolean
     showFullOutput: boolean
     confirmBeforeExecute: boolean
+    preserveSearchOnNavigation: boolean
+    preservePageOnNavigation: boolean
     workingDir?: string
     editorCommand?: string
     terminalMode: 'internal' | 'external'

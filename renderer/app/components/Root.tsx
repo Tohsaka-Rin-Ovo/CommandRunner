@@ -58,6 +58,40 @@ export default function Root() {
     return runningCommands + runningPresets;
   }, [activeCommands, activePresets]);
 
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      const runningCommandIds = Array.from(activeCommands.entries())
+        .filter(([, execution]) => execution.status === 'running')
+        .map(([id]) => id)
+      const runningPresetIds = Array.from(activePresets.entries())
+        .filter(([, execution]) => execution.overallStatus === 'running')
+        .map(([id]) => id)
+
+      const runningTaskIds = [...runningCommandIds, ...runningPresetIds]
+
+      if (runningTaskIds.length === 0) {
+        return
+      }
+
+      event.preventDefault()
+      event.returnValue = false as any
+
+      sessionStorage.setItem('close-intercept-running-highlight', 'true')
+      sessionStorage.setItem('close-intercept-running-ids', runningTaskIds.join(','))
+
+      window.setTimeout(() => {
+        navigate('/running')
+        toast.warning('检测到仍有任务在运行，已为您打开正在运行页面')
+      }, 0)
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [activeCommands, activePresets, navigate])
+
   const handleDragStart = (e: React.DragEvent, id: string) => {
     if (!useDefaultSort) return;
     setDraggingId(id);

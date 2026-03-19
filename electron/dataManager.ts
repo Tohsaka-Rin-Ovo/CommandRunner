@@ -418,6 +418,8 @@ export function getGlobalSettings(): any {
     stopOnError: boolean
     showFullOutput: boolean
     confirmBeforeExecute: boolean
+    preserveSearchOnNavigation: boolean
+    preservePageOnNavigation: boolean
     workingDir?: string
     editorCommand?: string
     terminalMode: 'internal' | 'external'
@@ -426,6 +428,8 @@ export function getGlobalSettings(): any {
     stopOnError: false,
     showFullOutput: true,
     confirmBeforeExecute: false,
+    preserveSearchOnNavigation: false,
+    preservePageOnNavigation: false,
     workingDir: '',
     editorCommand: '',
     terminalMode: 'external',

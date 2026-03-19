@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Plus, GripHorizontal, ChevronDown, ChevronRight, Play, Trash2, Edit, RotateCcw, CheckCircle, XCircle, AlertCircle, MinusCircle, Bookmark } from "lucide-react";
+import { Plus, ArrowUpWideNarrow, ChevronUp, ChevronDown, ChevronRight, Play, Trash2, Edit, RotateCcw, CheckCircle, XCircle, AlertCircle, MinusCircle, Bookmark, Search, X } from "lucide-react";
+import { useNavigate } from "react-router";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -40,6 +41,7 @@ import { useExecutionStore } from "../store/executionStore";
 import { usePresetStore } from "../store/presetStore";
 import type { Command as CommandType } from "@shared/types";
 import { handleInputFocus } from "../utils/focusUtils";
+import { highlightText } from "../utils/highlightText";
 
 interface Command {
   id: string;
@@ -49,6 +51,9 @@ interface Command {
 }
 
 export default function CommandList() {
+  const navigate = useNavigate();
+  const SEARCH_STORAGE_KEY = 'command-list-search-query'
+  const PAGE_STORAGE_KEY = 'command-list-current-page'
   const commands = useCommandStore((state) => state.commands);
   const fetchCommands = useCommandStore((state) => state.fetchCommands);
   const saveCommand = useCommandStore((state) => state.saveCommand);
@@ -73,6 +78,11 @@ export default function CommandList() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingCommand, setEditingCommand] = useState<Command | null>(null);
   const [showSortDialog, setShowSortDialog] = useState(false);
+  const [sortDraftCommands, setSortDraftCommands] = useState<CommandType[]>([]);
+  const [sortDraggingId, setSortDraggingId] = useState<string | null>(null);
+  const [sortDragOverId, setSortDragOverId] = useState<string | null>(null);
+  const [sortDropPosition, setSortDropPosition] = useState<'before' | 'after' | null>(null);
+  const [sortRecentlyMovedId, setSortRecentlyMovedId] = useState<string | null>(null);
   const [showFullOutputDialog, setShowFullOutputDialog] = useState(false);
   const [fullOutputData, setFullOutputData] = useState<{
     command: string;
@@ -91,8 +101,14 @@ export default function CommandList() {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showAddToPresetDialog, setShowAddToPresetDialog] = useState(false);
   const [selectedCommandForPreset, setSelectedCommandForPreset] = useState<Command | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [preserveSearchOnNavigation, setPreserveSearchOnNavigation] = useState(false)
+  const [preservePageOnNavigation, setPreservePageOnNavigation] = useState(false)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleScrollRef = useRef<(() => void) | null>(null);
 
@@ -167,37 +183,99 @@ export default function CommandList() {
   }, [fetchCommands, fetchPresets]);
 
   useEffect(() => {
-    const loadTerminalMode = async () => {
+    if (showSortDialog) {
+      setSortDraftCommands(commands);
+      setSortDraggingId(null);
+      setSortDragOverId(null);
+      setSortDropPosition(null);
+      setSortRecentlyMovedId(null);
+    }
+  }, [showSortDialog, commands]);
+
+  useEffect(() => {
+    if (!sortRecentlyMovedId) return;
+
+    const timeout = window.setTimeout(() => {
+      setSortRecentlyMovedId(null);
+    }, 650);
+
+    return () => window.clearTimeout(timeout);
+  }, [sortRecentlyMovedId]);
+
+  useEffect(() => {
+    const loadGlobalSettings = async () => {
       try {
         if (window.electronAPI?.getGlobalSettings) {
           const settings = await window.electronAPI.getGlobalSettings()
+          const nextPreserveSearch = settings?.preserveSearchOnNavigation ?? false
+          const nextPreservePage = settings?.preservePageOnNavigation ?? false
+
           setTerminalMode(settings?.terminalMode || 'internal')
+          setPreserveSearchOnNavigation(nextPreserveSearch)
+          setPreservePageOnNavigation(nextPreservePage)
+
+          if (nextPreserveSearch) {
+            const savedSearchQuery = sessionStorage.getItem(SEARCH_STORAGE_KEY) || ''
+            if (savedSearchQuery) {
+              setSearchQuery(savedSearchQuery)
+              setIsSearchOpen(true)
+            }
+          } else {
+            sessionStorage.removeItem(SEARCH_STORAGE_KEY)
+          }
+
+          if (nextPreservePage) {
+            const savedPage = sessionStorage.getItem(PAGE_STORAGE_KEY)
+            if (savedPage) {
+              setCurrentPage(Math.max(1, Number(savedPage) || 1))
+            }
+          } else {
+            sessionStorage.removeItem(PAGE_STORAGE_KEY)
+          }
+
+          setSettingsLoaded(true)
         }
       } catch (error) {
-        console.error('Failed to load terminal mode:', error)
+        console.error('Failed to load global settings:', error)
+        setSettingsLoaded(true)
       }
     }
-    loadTerminalMode()
-  }, [])
 
-  useEffect(() => {
+    loadGlobalSettings()
+
     const handleSettingsChange = () => {
-      const loadTerminalMode = async () => {
-        try {
-          if (window.electronAPI?.getGlobalSettings) {
-            const settings = await window.electronAPI.getGlobalSettings()
-            setTerminalMode(settings?.terminalMode || 'internal')
-          }
-        } catch (error) {
-          console.error('Failed to reload terminal mode:', error)
-        }
-      }
-      loadTerminalMode()
+      loadGlobalSettings()
     }
 
     window.addEventListener('settings-changed', handleSettingsChange)
     return () => window.removeEventListener('settings-changed', handleSettingsChange)
   }, [])
+
+  useEffect(() => {
+    if (!settingsLoaded) return
+
+    if (!preserveSearchOnNavigation) {
+      sessionStorage.removeItem(SEARCH_STORAGE_KEY)
+      return
+    }
+
+    if (searchQuery.trim()) {
+      sessionStorage.setItem(SEARCH_STORAGE_KEY, searchQuery)
+    } else {
+      sessionStorage.removeItem(SEARCH_STORAGE_KEY)
+    }
+  }, [preserveSearchOnNavigation, searchQuery, settingsLoaded])
+
+  useEffect(() => {
+    if (!settingsLoaded) return
+
+    if (!preservePageOnNavigation) {
+      sessionStorage.removeItem(PAGE_STORAGE_KEY)
+      return
+    }
+
+    sessionStorage.setItem(PAGE_STORAGE_KEY, String(currentPage))
+  }, [preservePageOnNavigation, currentPage, settingsLoaded])
 
   useEffect(() => {
     const expandCommandId = sessionStorage.getItem('expandCommandId')
@@ -210,6 +288,30 @@ export default function CommandList() {
       sessionStorage.removeItem('expandCommandId')
     }
   }, [])
+
+  useEffect(() => {
+    if (!isSearchOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!searchContainerRef.current?.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSearchOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isSearchOpen]);
 
   useEffect(() => {
     const unsubscribeOutput = window.electronAPI?.onCommandOutput((data) => {
@@ -231,10 +333,28 @@ export default function CommandList() {
     }
   }, [updateCommandOutput, completeCommand])
 
-  const totalPages = Math.ceil(commands.length / itemsPerPage);
+  const filteredCommands = commands.filter((command) => {
+    const keyword = searchQuery.trim().toLowerCase();
+
+    if (!keyword) return true;
+
+    return [
+      command.content,
+      command.description,
+      command.details,
+    ].some((value) => value.toLowerCase().includes(keyword));
+  });
+
+  const totalPages = Math.ceil(filteredCommands.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentCommands = commands.slice(startIndex, endIndex);
+  const currentCommands = filteredCommands.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
 
   const toggleExpand = (id: string) => {
     const newExpanded = new Set(expandedCommands);
@@ -462,59 +582,240 @@ export default function CommandList() {
     }
   };
 
+  const handleSortDragStart = (event: React.DragEvent<HTMLDivElement>, id: string) => {
+    setSortDraggingId(id);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', id);
+  };
+
+  const handleSortDragOver = (event: React.DragEvent<HTMLDivElement>, targetId: string) => {
+    if (!sortDraggingId || sortDraggingId === targetId) return;
+
+    event.preventDefault();
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const nextPosition = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+
+    setSortDragOverId(targetId);
+    setSortDropPosition(nextPosition);
+  };
+
+  const handleSortDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    const relatedTarget = event.relatedTarget as Node | null;
+
+    if (!relatedTarget || !event.currentTarget.contains(relatedTarget)) {
+      setSortDragOverId(null);
+      setSortDropPosition(null);
+    }
+  };
+
+  const handleSortDrop = (event: React.DragEvent<HTMLDivElement>, targetId: string) => {
+    if (!sortDraggingId || sortDraggingId === targetId || !sortDropPosition) {
+      setSortDragOverId(null);
+      setSortDropPosition(null);
+      setSortDraggingId(null);
+      return;
+    }
+
+    event.preventDefault();
+
+    setSortDraftCommands((prev) => {
+      const nextList = [...prev];
+      const fromIndex = nextList.findIndex((command) => command.id === sortDraggingId);
+      const toIndex = nextList.findIndex((command) => command.id === targetId);
+
+      if (fromIndex === -1 || toIndex === -1) return prev;
+
+      const [movedItem] = nextList.splice(fromIndex, 1);
+
+      let insertIndex = toIndex;
+      if (fromIndex < toIndex) {
+        insertIndex -= 1;
+      }
+      if (sortDropPosition === 'after') {
+        insertIndex += 1;
+      }
+
+      nextList.splice(insertIndex, 0, movedItem);
+      setSortRecentlyMovedId(sortDraggingId);
+      return nextList;
+    });
+
+    setSortDragOverId(null);
+    setSortDropPosition(null);
+    setSortDraggingId(null);
+  };
+
+  const handleSortDragEnd = () => {
+    setSortDraggingId(null);
+    setSortDragOverId(null);
+    setSortDropPosition(null);
+  };
+
+  const handleSaveSortOrder = async () => {
+    const newOrder = sortDraftCommands.map((command) => command.id);
+    await reorderCommands(newOrder);
+    toast.success('命令顺序已更新');
+    setShowSortDialog(false);
+  };
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* 头部操作栏 */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-xl font-semibold text-gray-900">命令列表</h2>
+              <div ref={searchContainerRef} className="relative" onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`relative h-8 w-8 rounded-full transition-all hover:text-gray-600 hover:bg-gray-100 ${searchQuery.trim() ? 'search-active-pulse bg-blue-50 text-blue-600 ring-1 ring-blue-200 hover:bg-blue-100' : isSearchOpen ? 'bg-gray-100 text-gray-600' : 'text-gray-400'}`}
+                  onClick={() => setIsSearchOpen((prev) => !prev)}
+                  title="搜索命令"
+                >
+                  <Search className="w-4 h-4" />
+                  {searchQuery.trim() && (
+                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-blue-500" />
+                  )}
+                </Button>
+                {isSearchOpen && (
+                  <div className="absolute left-0 top-10 z-20 w-72 rounded-xl border border-gray-200 bg-white p-2.5 shadow-lg">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 w-3.5 h-3.5 -translate-y-1/2 text-gray-400" />
+                      <Input
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        placeholder="搜索命令内容、说明或详情..."
+                        className="h-9 pl-9 pr-8 text-sm"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setCurrentPage(1);
+                          }}
+                          title="清空搜索"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {searchQuery.trim() && (
+                      <p className="mt-2 px-1 text-xs text-gray-500">
+                        找到 {filteredCommands.length} 条匹配的命令
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-4 mt-1.5">
+              <p className="text-sm text-gray-600">统一管理常用命令</p>
+              <div className="flex items-center gap-3 text-xs text-gray-500">
+                <span className="bg-gray-100 px-2 py-0.5 rounded-full">
+                  共 {commands.length} 条命令
+                </span>
+                <button
+                  type="button"
+                  className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600 transition-colors hover:bg-blue-100 hover:text-blue-700"
+                  onClick={() => navigate('/running')}
+                  title="查看正在运行页面"
+                >
+                  {activeCommands.size} 个正在运行记录
+                </button>
+                {searchQuery.trim() && (
+                  <span className="group inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                    <span>匹配 {filteredCommands.length} 条结果</span>
+                    <button
+                      type="button"
+                      className="hidden rounded-full p-0.5 text-blue-500 transition-colors hover:bg-blue-200 hover:text-blue-700 group-hover:inline-flex"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setCurrentPage(1);
+                      }}
+                      title="清空搜索"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {bulkSelectMode && selectedCommands.size > 0 && (
+                  <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                    已选 {selectedCommands.size} / {commands.length}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="flex items-center gap-3">
-            {bulkSelectMode && (
-              <Checkbox
-                checked={selectedCommands.size === commands.length && commands.length > 0}
-                onCheckedChange={handleToggleAll}
-                className="w-4 h-4"
-              />
-            )}
-            <Button
-              variant={bulkSelectMode ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setBulkSelectMode(!bulkSelectMode);
-                setSelectedCommands(new Set());
-              }}
-            >
-              {bulkSelectMode ? "取消批量选择" : "批量选择"}
-            </Button>
-            {bulkSelectMode && selectedCommands.size > 0 && (
-              <span className="ml-3 text-sm text-gray-600">
-                已选择 {selectedCommands.size} / {commands.length}
-              </span>
-            )}
+            <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50/80 p-1 shadow-sm">
+              <div
+                className={`flex items-center rounded-lg px-2 ${bulkSelectMode ? 'bg-blue-50 text-blue-700' : 'text-gray-600'}`}
+              >
+                {bulkSelectMode ? (
+                  <Checkbox
+                    checked={selectedCommands.size === commands.length && commands.length > 0}
+                    onCheckedChange={handleToggleAll}
+                    className="mr-2 w-4 h-4"
+                  />
+                ) : null}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setBulkSelectMode(!bulkSelectMode);
+                    setSelectedCommands(new Set());
+                  }}
+                  className={`h-9 rounded-lg px-2 ${bulkSelectMode ? 'text-blue-700 hover:bg-blue-100/80 hover:text-blue-800' : 'text-gray-600 hover:bg-white hover:text-gray-900'}`}
+                >
+                  {bulkSelectMode ? "取消批量选择" : "批量选择"}
+                </Button>
+              </div>
+
+              <div className="h-5 w-px bg-gray-200" />
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSortDialog(true)}
+                className="h-9 rounded-lg px-3 text-gray-600 hover:bg-white hover:text-gray-900"
+                title="调整命令顺序"
+              >
+                <span className="mr-1.5 flex h-5 w-5 items-center justify-center rounded-md bg-gray-100 text-gray-500">
+                  <ArrowUpWideNarrow className="w-3.5 h-3.5" />
+                </span>
+                调整顺序
+              </Button>
+            </div>
+
             {bulkSelectMode && selectedCommands.size > 0 && (
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => setShowBulkDeleteDialog(true)}
+                className="h-9 rounded-xl px-3"
               >
-                <Trash2 className="w-4 h-4 mr-1" />
+                <Trash2 className="w-4 h-4 mr-1.5" />
                 删除选中 ({selectedCommands.size})
               </Button>
             )}
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSortDialog(true)}
-            >
-              <GripHorizontal className="w-4 h-4 mr-1" />
-              调整顺序
-            </Button>
+
             <Button
               size="sm"
               onClick={() => setShowAddDialog(true)}
+              className="h-9 rounded-md px-4 shadow-sm"
             >
-              <Plus className="w-4 h-4 mr-1" />
+              <Plus className="w-4 h-4 mr-1.5" />
               添加命令
             </Button>
           </div>
@@ -522,9 +823,45 @@ export default function CommandList() {
       </div>
 
       {/* 命令列表 */}
-      <div className="flex-1 overflow-auto p-6 custom-scrollbar" ref={scrollContainerRef}>
+      <div
+        className="flex-1 overflow-auto p-6 custom-scrollbar"
+        ref={scrollContainerRef}
+        onClick={() => {
+          if (isSearchOpen) {
+            setIsSearchOpen(false);
+          }
+        }}
+      >
         <div className="max-w-5xl mx-auto space-y-3">
-          {currentCommands.map((command) => (
+          {currentCommands.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-[360px] text-gray-400 bg-white rounded-xl border border-gray-200">
+              <Search className="w-10 h-10 mb-4 text-gray-300" />
+              <h3 className="text-base font-medium text-gray-600 mb-2">
+                {searchQuery.trim() ? '没有找到匹配的命令' : '还没有命令'}
+              </h3>
+              <p className="text-sm text-center max-w-md mb-5">
+                {searchQuery.trim()
+                  ? '试试更换关键词，或者搜索命令说明和详情内容'
+                  : '点击右上角添加命令，开始建立您的常用命令列表'}
+              </p>
+              {searchQuery.trim() ? (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setCurrentPage(1);
+                  }}
+                >
+                  清空搜索
+                </Button>
+              ) : (
+                <Button onClick={() => setShowAddDialog(true)}>
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  添加命令
+                </Button>
+              )}
+            </div>
+          ) : currentCommands.map((command) => (
             <ContextMenu key={command.id}>
               <ContextMenuTrigger asChild>
                 <div
@@ -560,11 +897,11 @@ export default function CommandList() {
                         <div className="flex items-start gap-3">
                           <div className="flex-1 min-w-0">
                             <code className="block bg-gray-900 text-green-400 px-4 py-3 rounded font-mono text-sm mb-3 overflow-x-auto">
-                              {command.content}
+                              {highlightText(command.content, searchQuery)}
                             </code>
                             <div className="flex items-center justify-between gap-4">
                               <p className="text-sm text-gray-600">
-                                {command.description}
+                                {highlightText(command.description, searchQuery)}
                               </p>
                               <div className="flex items-center gap-2">
                               {expandedCommands.has(command.id) && (
@@ -628,7 +965,7 @@ export default function CommandList() {
                           命令介绍
                         </h4>
                         <p className="text-sm text-gray-600 leading-relaxed">
-                          {command.details}
+                          {highlightText(command.details, searchQuery)}
                         </p>
                       </div>
 
@@ -858,54 +1195,116 @@ export default function CommandList() {
 
       {/* 调整顺序对话框 */}
       <Dialog open={showSortDialog} onOpenChange={setShowSortDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>调整命令顺序</DialogTitle>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col overflow-hidden rounded-2xl p-0 gap-0">
+          <DialogHeader className="border-b border-gray-200/80 bg-gradient-to-b from-white to-gray-50/50 px-6 py-5">
+            <DialogTitle className="flex items-center gap-3 text-[17px]">
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 text-blue-600 shadow-sm">
+                <ArrowUpWideNarrow className="w-5 h-5" />
+              </span>
+              <span className="flex flex-col gap-0.5">
+                <span>调整命令顺序</span>
+                <span className="text-[12px] font-normal text-gray-500">拖拽命令卡片即可重新排序，完成后统一保存</span>
+              </span>
+            </DialogTitle>
           </DialogHeader>
-          <div className="py-4 max-h-96 overflow-y-auto">
-            <div className="space-y-2">
-              {commands.map((command, index) => (
-                <div
-                  key={command.id}
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex flex-col gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-6 px-2"
-                      onClick={() => moveCommandUp(index)}
-                      disabled={index === 0}
-                    >
-                      ↑
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-6 px-2"
-                      onClick={() => moveCommandDown(index)}
-                      disabled={index === commands.length - 1}
-                    >
-                      ↓
-                    </Button>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <code className="text-sm font-mono text-gray-900">
-                      {command.content}
-                    </code>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {command.description}
-                    </p>
-                  </div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-[13px] font-semibold text-gray-900">拖拽排序</h3>
                 </div>
-              ))}
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
+                  共 {sortDraftCommands.length} 条命令
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {sortDraftCommands.map((command, index) => (
+                  <div
+                    key={command.id}
+                    draggable
+                    className={`group flex items-start gap-3 rounded-xl border bg-white p-3 transition-all duration-200 cursor-grab active:cursor-grabbing ${
+                      sortDraggingId === command.id
+                        ? 'scale-[0.985] border-2 border-dashed border-gray-300 bg-gray-50 opacity-45 shadow-none'
+                        : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50/40 hover:shadow-sm'
+                    } ${
+                      sortRecentlyMovedId === command.id
+                        ? 'selected-command-drop-feedback border-blue-200 bg-blue-50/80'
+                        : ''
+                    } ${
+                      sortDragOverId === command.id && sortDropPosition === 'before'
+                        ? 'border-t-[3px] border-t-blue-500 bg-blue-50/70 ring-2 ring-blue-100'
+                        : ''
+                    } ${
+                      sortDragOverId === command.id && sortDropPosition === 'after'
+                        ? 'border-b-[3px] border-b-blue-500 bg-blue-50/70 ring-2 ring-blue-100'
+                        : ''
+                    }`}
+                    onDragStart={(event) => handleSortDragStart(event, command.id)}
+                    onDragOver={(event) => handleSortDragOver(event, command.id)}
+                    onDragLeave={handleSortDragLeave}
+                    onDrop={(event) => handleSortDrop(event, command.id)}
+                    onDragEnd={handleSortDragEnd}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-medium font-mono text-gray-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                        {index + 1}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <code className="block text-sm font-mono text-gray-800 leading-relaxed break-all">
+                        {command.content}
+                      </code>
+                      {command.description && (
+                        <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
+                          {command.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 hover:bg-blue-100 hover:text-blue-700"
+                        onClick={() => setSortDraftCommands((prev) => {
+                          if (index === 0) return prev;
+                          const next = [...prev];
+                          [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                          return next;
+                        })}
+                        disabled={index === 0}
+                        title="上移"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 hover:bg-blue-100 hover:text-blue-700"
+                        onClick={() => setSortDraftCommands((prev) => {
+                          if (index === prev.length - 1) return prev;
+                          const next = [...prev];
+                          [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                          return next;
+                        })}
+                        disabled={index === sortDraftCommands.length - 1}
+                        title="下移"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="border-t border-gray-200/80 bg-gradient-to-b from-gray-50/50 to-white px-6 py-4 gap-3">
             <Button variant="outline" onClick={() => setShowSortDialog(false)}>
               取消
             </Button>
-            <Button onClick={() => setShowSortDialog(false)}>完成</Button>
+            <Button onClick={handleSaveSortOrder}>完成</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

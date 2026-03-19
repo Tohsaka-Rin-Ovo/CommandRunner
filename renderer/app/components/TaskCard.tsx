@@ -24,6 +24,7 @@ interface TaskCardProps {
   onStop: (id: string, type: 'command' | 'preset') => void
   onClick: (task: TaskItem) => void
   onRemove: (id: string, type: 'command' | 'preset') => void
+  highlight?: boolean
 }
 
 const isRunning = (status: TaskItem['status']) => {
@@ -130,14 +131,17 @@ const formatDuration = (duration: number) => {
   }
 }
 
-export function TaskCard({ task, onStop, onClick, onRemove }: TaskCardProps) {
+export function TaskCard({ task, onStop, onClick, onRemove, highlight = false }: TaskCardProps) {
   const isCommand = task.type === 'command'
 
   return (
     <div 
-      className={`group relative overflow-hidden rounded-xl border bg-white p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${getStatusStyle(task.status)}`}
+      className={`group relative overflow-hidden rounded-xl border bg-white p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${getStatusStyle(task.status)} ${highlight ? 'ring-2 ring-blue-200 border-blue-300 bg-blue-50/40 shadow-blue-100/60' : ''}`}
       onClick={() => onClick(task)}
     >
+      {highlight && (
+        <div className="pointer-events-none absolute inset-0 animate-pulse rounded-xl border border-blue-300/70" />
+      )}
       {/* 头部：图标 + 名称 + 状态 */}
       <div className="mb-3 flex items-start justify-between gap-3 pl-2">
         <div className="flex items-start gap-3 min-w-0 flex-1">
