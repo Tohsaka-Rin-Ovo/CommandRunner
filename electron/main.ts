@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu } from 'electron'
 import path from 'path'
-import { setupIPCHandlers } from './ipcHandlers'
+import { setIPCMainWindow, setupIPCHandlers } from './ipcHandlers'
+import { refreshGlobalShortcuts, unregisterGlobalShortcuts } from './shortcutManager'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -54,19 +55,26 @@ function createWindow() {
   })
 
   mainWindow.on('closed', () => {
+    setIPCMainWindow(null)
     mainWindow = null
   })
 }
 
 app.whenReady().then(() => {
-  setupIPCHandlers()
   createWindow()
+  setupIPCHandlers(mainWindow)
+  refreshGlobalShortcuts()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
+      setIPCMainWindow(mainWindow)
     }
   })
+})
+
+app.on('will-quit', () => {
+  unregisterGlobalShortcuts()
 })
 
 app.on('window-all-closed', () => {

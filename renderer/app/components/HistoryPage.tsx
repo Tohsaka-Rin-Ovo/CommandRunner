@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
-import { Search, Star, StarOff, Trash2, CheckCircle, XCircle, AlertCircle, Clock, Download, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Search, Star, StarOff, Trash2, CheckCircle, XCircle, AlertCircle, Clock, Download, ChevronDown, ArrowUp, ArrowDown, ChevronsUp } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Input } from './ui/input'
@@ -72,6 +72,7 @@ export default function HistoryPage() {
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false)
   const [showClearDialog, setShowClearDialog] = useState(false)
   const [showManageFavoritesDialog, setShowManageFavoritesDialog] = useState(false)
+  const [showScrollTopButton, setShowScrollTopButton] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const handleScrollRef = useRef<(() => void) | null>(null)
@@ -250,6 +251,7 @@ export default function HistoryPage() {
 
     const handleScroll = () => {
       scrollContainer.classList.add('scrolling')
+      setShowScrollTopButton(scrollContainer.scrollTop > 32)
 
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current)
@@ -262,6 +264,7 @@ export default function HistoryPage() {
 
     handleScrollRef.current = handleScroll
     scrollContainer.addEventListener('scroll', handleScroll)
+    handleScroll()
 
     return () => {
       const currentContainer = scrollContainerRef.current
@@ -275,134 +278,161 @@ export default function HistoryPage() {
     }
   }, [])
 
+  const handleScrollToTop = () => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="relative flex h-full flex-col bg-gray-50">
+    <Tabs
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="flex h-full flex-col bg-gray-50"
+    >
       {/* 头部 */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto">
+      <div className="z-10 bg-white border-b border-gray-200 px-6 pt-4 pb-3">
+        <div className="max-w-6xl mx-auto flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">历史命令</h1>
             <p className="mt-1 text-sm text-gray-500">查看单个命令与命令预设的执行结果、输出和导出记录</p>
           </div>
+
+          <div className="flex w-full justify-center lg:w-auto lg:justify-end">
+            <TabsList className="grid h-11 w-full max-w-3xl grid-cols-2 items-stretch rounded-2xl border border-gray-200 bg-gray-100/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] md:grid-cols-4 lg:w-auto">
+              <TabsTrigger
+                value="all"
+                className="h-full self-stretch rounded-xl border border-transparent px-3 text-xs font-medium leading-none text-slate-500 transition-all duration-200 hover:text-slate-700 data-[state=active]:border-slate-200 data-[state=active]:bg-white data-[state=active]:text-slate-900"
+              >
+                全部 ({stats.all})
+              </TabsTrigger>
+              <TabsTrigger
+                value="preset"
+                className="h-full self-stretch rounded-xl border border-transparent px-3 text-xs font-medium leading-none text-slate-500 transition-all duration-200 hover:text-slate-700 data-[state=active]:border-indigo-200 data-[state=active]:bg-white data-[state=active]:text-indigo-700"
+              >
+                预设命令 ({stats.preset})
+              </TabsTrigger>
+              <TabsTrigger
+                value="single"
+                className="h-full self-stretch rounded-xl border border-transparent px-3 text-xs font-medium leading-none text-slate-500 transition-all duration-200 hover:text-slate-700 data-[state=active]:border-sky-200 data-[state=active]:bg-white data-[state=active]:text-sky-700"
+              >
+                单个命令 ({stats.single})
+              </TabsTrigger>
+              <TabsTrigger
+                value="favorites"
+                className="h-full self-stretch rounded-xl border border-transparent px-3 text-xs font-medium leading-none text-slate-500 transition-all duration-200 hover:text-slate-700 data-[state=active]:border-amber-200 data-[state=active]:bg-white data-[state=active]:text-amber-700"
+              >
+                我的收藏 ({stats.favorites})
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </div>
       </div>
 
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-gray-50 custom-scrollbar">
+
       {/* 标签和控制栏 */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto space-y-4">
-          {/* 标签切换 */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="all">全部 ({stats.all})</TabsTrigger>
-              <TabsTrigger value="preset">预设命令 ({stats.preset})</TabsTrigger>
-              <TabsTrigger value="single">单个命令 ({stats.single})</TabsTrigger>
-              <TabsTrigger value="favorites">我的收藏 ({stats.favorites})</TabsTrigger>
-            </TabsList>
+      <div className="bg-gray-50 px-6 pt-3 pb-0">
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="搜索预设名称、命令内容或命令描述..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
 
-            {/* 搜索和排序 */}
-            <div className="flex items-center gap-4 mt-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="搜索预设名称、命令内容或命令描述..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-md p-1">
+              <DropdownMenu onOpenChange={setIsSortDropdownOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 font-normal">
+                    <span className="text-sm">{sortBy === 'name' ? '按名称排序' : '按时间排序'}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleSortBy('name')}>
+                      按名称排序
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleSortBy('time')}>
+                      按时间排序
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenuPortal>
+              </DropdownMenu>
+              <div className="w-px h-4 bg-gray-200 mx-1" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                title={sortOrder === 'asc' ? '切换为降序' : '切换为升序'}
+              >
+                {sortOrder === 'asc' ? (
+                  <ArrowUp className="w-3.5 h-3.5 text-gray-500" />
+                ) : (
+                  <ArrowDown className="w-3.5 h-3.5 text-gray-500" />
+                )}
+              </Button>
+            </div>
 
-              <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-md p-1">
-                <DropdownMenu onOpenChange={setIsSortDropdownOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 font-normal">
-                      <span className="text-sm">{sortBy === 'name' ? '按名称排序' : '按时间排序'}</span>
-                      <ChevronDown 
-                        className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180' : ''}`} 
-                      />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => handleSortBy('name')}>
-                        按名称排序
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleSortBy('time')}>
-                        按时间排序
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenuPortal>
-                </DropdownMenu>
-                <div className="w-px h-4 bg-gray-200 mx-1" />
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  title={sortOrder === 'asc' ? '切换为降序' : '切换为升序'}
-                >
-                  {sortOrder === 'asc' ? (
-                    <ArrowUp className="w-3.5 h-3.5 text-gray-500" />
-                  ) : (
-                    <ArrowDown className="w-3.5 h-3.5 text-gray-500" />
-                  )}
-                </Button>
-              </div>
+            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-md p-1">
+              <DropdownMenu open={isStatusDropdownOpen} onOpenChange={setIsStatusDropdownOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 gap-1 px-2 font-normal">
+                    <span>{statusFilter === 'all' ? '全部' : statusFilter === 'success' ? '成功' : statusFilter === 'failed' ? '失败' : '已停止'}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuItem onClick={() => setStatusFilter('all')}>
+                    全部
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setStatusFilter('success')}>
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                    成功
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setStatusFilter('failed')}>
+                    <XCircle className="w-4 h-4 mr-2 text-red-600" />
+                    失败
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setStatusFilter('stopped')}>
+                    <AlertCircle className="w-4 h-4 mr-2 text-yellow-600" />
+                    已停止
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
-                <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-md p-1">
-                 <DropdownMenu open={isStatusDropdownOpen} onOpenChange={setIsStatusDropdownOpen}>
-                   <DropdownMenuTrigger asChild>
-                     <Button variant="ghost" className="h-8 gap-1 px-2 font-normal">
-                       <span>{statusFilter === 'all' ? '全部' : statusFilter === 'success' ? '成功' : statusFilter === 'failed' ? '失败' : '已停止'}</span>
-                       <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
-                     </Button>
-                   </DropdownMenuTrigger>
-                   <DropdownMenuContent align="end" className="w-32">
-                     <DropdownMenuItem onClick={() => setStatusFilter('all')}>
-                       全部
-                     </DropdownMenuItem>
-                     <DropdownMenuItem onClick={() => setStatusFilter('success')}>
-                       <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                       成功
-                     </DropdownMenuItem>
-                     <DropdownMenuItem onClick={() => setStatusFilter('failed')}>
-                       <XCircle className="w-4 h-4 mr-2 text-red-600" />
-                       失败
-                     </DropdownMenuItem>
-                     <DropdownMenuItem onClick={() => setStatusFilter('stopped')}>
-                       <AlertCircle className="w-4 h-4 mr-2 text-yellow-600" />
-                       已停止
-                     </DropdownMenuItem>
-                   </DropdownMenuContent>
-                 </DropdownMenu>
-               </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowClearDialog(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              清空历史
+            </Button>
 
+            {activeTab === 'favorites' && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowClearDialog(true)}
+                onClick={() => setShowManageFavoritesDialog(true)}
               >
-                <Trash2 className="w-4 h-4 mr-2" />
-                清空历史
+                <StarOff className="w-4 h-4 mr-2" />
+                管理收藏
               </Button>
-
-              {activeTab === 'favorites' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowManageFavoritesDialog(true)}
-                >
-                  <StarOff className="w-4 h-4 mr-2" />
-                  管理收藏
-                </Button>
-              )}
-            </div>
-          </Tabs>
+            )}
+          </div>
         </div>
       </div>
 
       {/* 历史记录列表 */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-auto p-6 custom-scrollbar">
-        <div className="max-w-6xl mx-auto">
+      <div className="bg-gray-50 px-6 pb-6 pt-3">
+        <div className="mx-auto w-full max-w-6xl">
           {sortedHistory.length === 0 ? (
             <div className="bg-white rounded-xl border border-dashed border-gray-300 p-14 text-center shadow-sm">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
@@ -593,6 +623,17 @@ export default function HistoryPage() {
           )}
         </div>
       </div>
+      </div>
+
+      <Button
+        type="button"
+        size="icon"
+        className={`fixed bottom-6 right-6 z-20 h-11 w-11 rounded-full border border-gray-200 bg-white text-gray-600 shadow-lg transition-all duration-200 hover:bg-gray-50 hover:text-gray-900 ${showScrollTopButton ? 'translate-y-0 opacity-100 scale-100 pointer-events-auto' : 'translate-y-2 opacity-0 scale-95 pointer-events-none'}`}
+        onClick={handleScrollToTop}
+        title="回到顶部"
+      >
+        <ChevronsUp className="w-4 h-4" />
+      </Button>
 
       {/* 清空历史确认对话框 */}
       <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
@@ -636,6 +677,7 @@ export default function HistoryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </Tabs>
     </div>
   )
 }

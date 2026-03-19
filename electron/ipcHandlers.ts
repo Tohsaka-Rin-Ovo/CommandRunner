@@ -1,10 +1,16 @@
 import { ipcMain, app, dialog, BrowserWindow } from 'electron'
 import * as DataManager from './dataManager'
-import { CommandExecutor } from './commandExecutor'
+import { executor } from './executorService'
+import { refreshGlobalShortcuts } from './shortcutManager'
 
-const executor = new CommandExecutor()
+let mainWindow: BrowserWindow | null = null
 
-export function setupIPCHandlers() {
+export function setIPCMainWindow(window?: BrowserWindow | null) {
+  mainWindow = window ?? null
+}
+
+export function setupIPCHandlers(window?: BrowserWindow | null) {
+  setIPCMainWindow(window)
   // Commands
   ipcMain.handle('get-commands', async () => {
     return DataManager.getCommands()
@@ -144,7 +150,14 @@ export function setupIPCHandlers() {
   })
 
   ipcMain.handle('save-global-settings', async (_event, settings) => {
-    return DataManager.saveGlobalSettings(settings)
+    const result = DataManager.saveGlobalSettings(settings)
+    if (result) {
+      refreshGlobalShortcuts()
+    }
+    if (result && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('settings-changed')
+    }
+    return result
   })
 
   // File Dialog

@@ -1,4 +1,4 @@
-import type { Command, Preset, History, PresetHistory } from '@shared/types'
+import type { Command, Preset, History, PresetHistory, GlobalSettings } from '@shared/types'
 
 export interface ElectronAPI {
   // Commands
@@ -44,33 +44,14 @@ export interface ElectronAPI {
   selectDirectory: () => Promise<string | null>
 
   // Settings
-  getGlobalSettings: () => Promise<{
-    theme: 'light' | 'dark'
-    stopOnError: boolean
-    showFullOutput: boolean
-    confirmBeforeExecute: boolean
-    preserveSearchOnNavigation: boolean
-    preservePageOnNavigation: boolean
-    workingDir?: string
-    editorCommand?: string
-    terminalMode: 'internal' | 'external'
-  }>
-  saveGlobalSettings: (settings: {
-    theme: 'light' | 'dark'
-    stopOnError: boolean
-    showFullOutput: boolean
-    confirmBeforeExecute: boolean
-    preserveSearchOnNavigation: boolean
-    preservePageOnNavigation: boolean
-    workingDir?: string
-    editorCommand?: string
-    terminalMode: 'internal' | 'external'
-  }) => Promise<void>
+  getGlobalSettings: () => Promise<GlobalSettings>
+  saveGlobalSettings: (settings: GlobalSettings) => Promise<void>
 
   // Events
   onCommandOutput: (callback: (data: { commandId: string, line: string, type: 'stdout' | 'stderr' }) => void) => () => void
   onCommandComplete: (callback: (data: { commandId: string, success: boolean, code: number | null, output: string, duration: number }) => void) => () => void
   onPresetProgress: (callback: (data: { presetId: string, currentIndex: number, total: number, commandId: string | null, completed?: boolean, commandStatus?: 'success' | 'failed' | 'stopped' }) => void) => () => void
+  onShortcutExecutionStarted: (callback: (data: { type: 'command' | 'preset', commandId?: string, command?: string, sourceCommandId?: string, presetId?: string, commandIds?: string[] }) => void) => () => void
 }
 
 declare global {

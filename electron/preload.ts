@@ -63,4 +63,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('preset-progress', listener)
     return () => ipcRenderer.removeListener('preset-progress', listener)
   },
+  onShortcutExecutionStarted: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('shortcut-execution-started', listener)
+    return () => ipcRenderer.removeListener('shortcut-execution-started', listener)
+  },
 })

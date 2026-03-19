@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { app } from 'electron'
+import type { GlobalSettings } from '@shared/types'
 
 const DATA_DIR = path.join(app.getPath('userData'), 'data')
 console.log('[DataManager] DATA_DIR:', DATA_DIR)
@@ -412,18 +413,8 @@ export function cancelAllPresetHistoryFavorites(): boolean {
 }
 
 // Global Settings
-export function getGlobalSettings(): any {
-  return readFile<{
-    theme: 'light' | 'dark'
-    stopOnError: boolean
-    showFullOutput: boolean
-    confirmBeforeExecute: boolean
-    preserveSearchOnNavigation: boolean
-    preservePageOnNavigation: boolean
-    workingDir?: string
-    editorCommand?: string
-    terminalMode: 'internal' | 'external'
-  }>('globalSettings.json', {
+export function getGlobalSettings(): GlobalSettings {
+  return readFile<GlobalSettings>('globalSettings.json', {
     theme: 'light',
     stopOnError: false,
     showFullOutput: true,
@@ -433,9 +424,10 @@ export function getGlobalSettings(): any {
     workingDir: '',
     editorCommand: '',
     terminalMode: 'external',
+    shortcutBindings: [],
   })
 }
 
-export function saveGlobalSettings(settings: any): boolean {
+export function saveGlobalSettings(settings: GlobalSettings): boolean {
   return writeFile('globalSettings.json', settings)
 }

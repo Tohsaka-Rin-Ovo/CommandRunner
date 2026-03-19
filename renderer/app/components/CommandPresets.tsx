@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown, Search, Save, X } from "lucide-react";
+import { Database, Server, Code, Package, Plus, Play, Edit, Trash2, ChevronRight, ChevronDown, RotateCcw, CheckCircle, AlertCircle, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown, Search, Save, X, Keyboard } from "lucide-react";
 import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ScrollArea } from "./ui/scroll-area";
@@ -47,7 +47,7 @@ import { toast } from "sonner";
 import { usePresetStore } from "../store/presetStore";
 import { useExecutionStore } from "../store/executionStore";
 import { useCommandStore } from "../store/commandStore";
-import type { Command, Preset } from "@shared/types";
+import type { Command, Preset, ShortcutBinding } from "@shared/types";
 import { SelectedCommandsFloating } from "./SelectedCommandsFloating";
 import { handleInputFocus } from "../utils/focusUtils";
 import { highlightText } from "../utils/highlightText";
@@ -109,6 +109,7 @@ export default function CommandPresets() {
   const [preserveSearchOnNavigation, setPreserveSearchOnNavigation] = useState(false);
   const [preservePageOnNavigation, setPreservePageOnNavigation] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [shortcutBindings, setShortcutBindings] = useState<ShortcutBinding[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -138,6 +139,7 @@ export default function CommandPresets() {
           setTerminalMode(settings?.terminalMode || 'internal')
           setPreserveSearchOnNavigation(nextPreserveSearch)
           setPreservePageOnNavigation(nextPreservePage)
+          setShortcutBindings((settings?.shortcutBindings || []).filter((binding: ShortcutBinding) => binding.targetType === 'preset'))
 
           if (nextPreserveSearch) {
             const savedSearchQuery = sessionStorage.getItem(SEARCH_STORAGE_KEY) || ''
@@ -841,6 +843,7 @@ export default function CommandPresets() {
                     const Icon = PRESET_ICONS[preset.icon as keyof typeof PRESET_ICONS] || Package;
                     const execution = getPresetStatus(preset.id);
                     const isExpanded = expandedPresets.has(preset.id);
+                    const shortcutBinding = shortcutBindings.find((binding) => binding.targetId === preset.id);
 
                     return (
                       <ContextMenu key={preset.id}>
@@ -880,6 +883,12 @@ export default function CommandPresets() {
                                     }`} />
                                   </div>
                                   <div className="flex-1 min-w-0">
+                                    {shortcutBinding && (
+                                      <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700">
+                                        <Keyboard className="w-3.5 h-3.5" />
+                                        已绑定 {shortcutBinding.displayLabel}
+                                      </div>
+                                    )}
                                     <div className="flex items-center gap-2.5">
                                       <h3 className="font-semibold text-gray-900 truncate text-[15px]">{highlightText(preset.name, searchQuery)}</h3>
                                       {getStatusIcon(execution?.completed ? "completed" : execution?.stopRequested ? "stopped" : execution?.overallStatus === 'running' ? "running" : undefined)}

@@ -27,6 +27,29 @@ export interface Preset {
   updatedAt: number;
 }
 
+export type ShortcutBindingTargetType = 'command' | 'preset';
+
+export interface ShortcutBinding {
+  id: string;
+  targetType: ShortcutBindingTargetType;
+  targetId: string;
+  accelerator: string;
+  displayLabel: string;
+}
+
+export interface GlobalSettings {
+  theme: 'light' | 'dark';
+  stopOnError: boolean;
+  showFullOutput: boolean;
+  confirmBeforeExecute: boolean;
+  preserveSearchOnNavigation: boolean;
+  preservePageOnNavigation: boolean;
+  workingDir?: string;
+  editorCommand?: string;
+  terminalMode: 'internal' | 'external';
+  shortcutBindings: ShortcutBinding[];
+}
+
 export interface History {
   id: string;
   command: string;

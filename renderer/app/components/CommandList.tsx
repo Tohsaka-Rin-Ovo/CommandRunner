@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Plus, ArrowUpWideNarrow, ChevronUp, ChevronDown, ChevronRight, Play, Trash2, Edit, RotateCcw, CheckCircle, XCircle, AlertCircle, MinusCircle, Bookmark, Search, X } from "lucide-react";
+import { Plus, ArrowUpWideNarrow, ChevronUp, ChevronDown, ChevronRight, Play, Trash2, Edit, RotateCcw, CheckCircle, XCircle, AlertCircle, MinusCircle, Bookmark, Search, X, Keyboard } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -39,7 +39,7 @@ import { FullOutputDialog } from "./FullOutputDialog";
 import { useCommandStore } from "../store/commandStore";
 import { useExecutionStore } from "../store/executionStore";
 import { usePresetStore } from "../store/presetStore";
-import type { Command as CommandType } from "@shared/types";
+import type { Command as CommandType, ShortcutBinding } from "@shared/types";
 import { handleInputFocus } from "../utils/focusUtils";
 import { highlightText } from "../utils/highlightText";
 
@@ -106,6 +106,7 @@ export default function CommandList() {
   const [preserveSearchOnNavigation, setPreserveSearchOnNavigation] = useState(false)
   const [preservePageOnNavigation, setPreservePageOnNavigation] = useState(false)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [shortcutBindings, setShortcutBindings] = useState<ShortcutBinding[]>([])
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -213,6 +214,7 @@ export default function CommandList() {
           setTerminalMode(settings?.terminalMode || 'internal')
           setPreserveSearchOnNavigation(nextPreserveSearch)
           setPreservePageOnNavigation(nextPreservePage)
+          setShortcutBindings((settings?.shortcutBindings || []).filter((binding: ShortcutBinding) => binding.targetType === 'command'))
 
           if (nextPreserveSearch) {
             const savedSearchQuery = sessionStorage.getItem(SEARCH_STORAGE_KEY) || ''
@@ -834,7 +836,7 @@ export default function CommandList() {
       >
         <div className="max-w-5xl mx-auto space-y-3">
           {currentCommands.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[360px] text-gray-400 bg-white rounded-xl border border-gray-200">
+          <div className="flex flex-col items-center justify-center h-[360px] text-gray-400 bg-white rounded-xl border border-gray-200">
               <Search className="w-10 h-10 mb-4 text-gray-300" />
               <h3 className="text-base font-medium text-gray-600 mb-2">
                 {searchQuery.trim() ? '没有找到匹配的命令' : '还没有命令'}
@@ -861,7 +863,10 @@ export default function CommandList() {
                 </Button>
               )}
             </div>
-          ) : currentCommands.map((command) => (
+          ) : currentCommands.map((command) => {
+            const shortcutBinding = shortcutBindings.find((binding) => binding.targetId === command.id)
+
+            return (
             <ContextMenu key={command.id}>
               <ContextMenuTrigger asChild>
                 <div
@@ -896,6 +901,12 @@ export default function CommandList() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-3">
                           <div className="flex-1 min-w-0">
+                            {shortcutBinding && (
+                              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700">
+                                <Keyboard className="w-3.5 h-3.5" />
+                                已绑定 {shortcutBinding.displayLabel}
+                              </div>
+                            )}
                             <code className="block bg-gray-900 text-green-400 px-4 py-3 rounded font-mono text-sm mb-3 overflow-x-auto">
                               {highlightText(command.content, searchQuery)}
                             </code>
@@ -1021,7 +1032,7 @@ export default function CommandList() {
                 </ContextMenuItem>
               </ContextMenuContent>
             </ContextMenu>
-          ))}
+          )})}
         </div>
 
         {/* 分页 */}

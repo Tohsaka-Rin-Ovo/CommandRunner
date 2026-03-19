@@ -26,6 +26,8 @@ function App() {
   const completeCommand = useExecutionStore((state) => state.completeCommand)
   const updatePresetProgress = useExecutionStore((state) => state.updatePresetProgress)
   const updatePresetCommandExecution = useExecutionStore((state) => state.updatePresetCommandExecution)
+  const startCommand = useExecutionStore((state) => state.startCommand)
+  const startPreset = useExecutionStore((state) => state.startPreset)
   const fetchHistoryAfterWrite = useHistoryStore((state) => state.fetchHistory)
   const fetchPresetHistoryAfterWrite = usePresetHistoryStore((state) => state.fetchPresetHistory)
   
@@ -177,15 +179,30 @@ function App() {
       }
     })
 
+    const cleanupShortcutStart = window.electronAPI.onShortcutExecutionStarted
+      ? window.electronAPI.onShortcutExecutionStarted((data) => {
+          if (data.type === 'command' && data.commandId && data.command) {
+            startCommand(`cmd-${data.commandId}`, data.command, data.sourceCommandId)
+          }
+
+          if (data.type === 'preset' && data.presetId && data.commandIds) {
+            startPreset(data.presetId, data.commandIds)
+          }
+        })
+      : () => {}
+
     return () => {
       cleanupOutput()
       cleanupComplete()
       cleanupProgress()
+      cleanupShortcutStart()
     }
   }, [
     updateCommandOutput,
     completeCommand,
     updatePresetProgress,
+    startCommand,
+    startPreset,
     getCommand,
     buildPresetHistory,
     updatePresetCommandExecution,
