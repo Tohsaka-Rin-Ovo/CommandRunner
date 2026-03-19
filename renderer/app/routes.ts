@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router'
+import { createMemoryRouter } from 'react-router'
 import Root from './components/Root'
 import CommandList from './components/CommandList'
 import CommandPresets from './components/CommandPresets'
@@ -9,7 +9,7 @@ import PresetHistoryDetail from './components/PresetHistoryDetail'
 import CommandHistoryDetail from './components/CommandHistoryDetail'
 import RunningTasks from './components/RunningTasks'
 
-export const router = createBrowserRouter([
+export const router = createMemoryRouter([
   {
     path: '/',
     Component: Root,

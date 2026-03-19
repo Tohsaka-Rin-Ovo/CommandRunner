@@ -19,6 +19,7 @@ import { useHistoryStore } from '../store/historyStore'
 import { usePresetHistoryStore } from '../store/presetHistoryStore'
 import type { History, PresetHistory } from '@shared/types'
 import { useCommandStore } from '../store/commandStore'
+import { highlightText } from '../utils/highlightText'
 
 const getHistoryStatusLabel = (status: 'success' | 'failed' | 'stopped') => {
   if (status === 'success') return '成功'
@@ -233,16 +234,6 @@ export default function HistoryPage() {
     const singleCount = getFavoriteHistory().length
     const presetCount = getFavoritePresetHistory().length
     return singleCount + presetCount
-  }
-
-  const highlightText = (text: string, query: string) => {
-    if (!query) return text
-    const parts = text.split(new RegExp(`(${query})`, 'gi'))
-    return parts.map((part, i) =>
-      part.toLowerCase() === query.toLowerCase() ? (
-        <span key={i} className="text-blue-600 font-medium">{part}</span>
-      ) : part
-    )
   }
 
   // 统计信息

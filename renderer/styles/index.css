@@ -62,3 +62,55 @@ body {
 .animate-shimmer {
   animation: shimmer 2s infinite;
 }
+
+.selected-commands-scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.55) transparent;
+}
+
+.selected-commands-scroll-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.selected-commands-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.selected-commands-scroll-area::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.45);
+  border-radius: 9999px;
+  transition: background-color 0.25s ease, opacity 0.25s ease;
+}
+
+.selected-commands-scroll-area:hover::-webkit-scrollbar-thumb,
+.selected-commands-scroll-area.scrolling::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.6);
+}
+
+.selected-command-text {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.selected-command-text::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes selected-command-drop-feedback {
+  0% {
+    transform: scale(0.985);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.22);
+  }
+  45% {
+    transform: scale(1.01);
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.08);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.selected-command-drop-feedback {
+  animation: selected-command-drop-feedback 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}

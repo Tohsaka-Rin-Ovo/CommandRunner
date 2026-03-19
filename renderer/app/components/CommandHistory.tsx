@@ -8,6 +8,7 @@ import { Checkbox } from "./ui/checkbox";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "./ui/pagination";
 import { useHistoryStore } from "../store/historyStore";
 import type { History as HistoryType } from "@shared/types";
+import { highlightText } from "../utils/highlightText";
 
 export default function CommandHistory() {
   const history = useHistoryStore((state) => state.history);
@@ -251,7 +252,7 @@ export default function CommandHistory() {
                       <div className="flex items-center gap-2 mb-2">
                         {getStatusIcon(item.status)}
                         <code className="flex-1 font-mono text-sm bg-gray-900 text-green-400 px-4 py-3 rounded overflow-x-auto">
-                          {item.command}
+                          {highlightText(item.command, searchQuery)}
                         </code>
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-600">
@@ -368,7 +369,7 @@ export default function CommandHistory() {
               <div className="mb-3 p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   {getStatusIcon(selectedHistory.status)}
-                  <code className="font-mono text-sm">{selectedHistory.command}</code>
+                  <code className="font-mono text-sm">{highlightText(selectedHistory.command, searchQuery)}</code>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-gray-600">
                   <span>{formatDate(selectedHistory.startTime)}</span>
@@ -377,7 +378,7 @@ export default function CommandHistory() {
               </div>
               <div className="bg-[#1e1e1e] rounded-lg p-4 max-h-96 overflow-y-auto">
                 <pre className="font-mono text-sm text-[#d4d4d4] whitespace-pre-wrap">
-                  {selectedHistory.output || "无输出"}
+                  {selectedHistory.output ? highlightText(selectedHistory.output, searchQuery) : "无输出"}
                 </pre>
               </div>
             </div>

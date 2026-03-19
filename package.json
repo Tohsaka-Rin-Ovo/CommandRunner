@@ -85,8 +85,19 @@
       "output": "release/${version}"
     },
     "files": [
-      "dist-electron/**/*",
-      "dist/**/*"
-    ]
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "sign": null
+    }
   }
 }

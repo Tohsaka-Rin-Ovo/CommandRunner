@@ -34,6 +34,7 @@ import type { Preset, PresetCommand, PresetHistory } from '@shared/types'
 import type { Command as CommandType, History } from '@shared/types'
 import { TerminalOutput } from "./TerminalOutput";
 import { handleInputFocus } from '../utils/focusUtils'
+import { highlightText } from '../utils/highlightText'
 
 export default function PresetDetail() {
   // 路由和导航
@@ -564,7 +565,7 @@ export default function PresetDetail() {
     if (!activePreset) return 0
     return Object.values(activePreset.commands).filter(cmd => cmd.status === 'pending').length
   }
-  
+
   // 过滤命令库
   const filteredCommands = commands.filter(cmd =>
     cmd.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1315,12 +1316,12 @@ export default function PresetDetail() {
                         `}
                       >
                         <code className="block text-sm font-mono text-gray-900 mb-2">
-                          {command.content}
+                          {highlightText(command.content, searchQuery)}
                         </code>
-                        <p className="text-sm text-gray-600">{command.description}</p>
+                        <p className="text-sm text-gray-600">{highlightText(command.description, searchQuery)}</p>
                         {command.details && (
                           <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                            {command.details}
+                            {highlightText(command.details, searchQuery)}
                           </p>
                         )}
                       </div>
