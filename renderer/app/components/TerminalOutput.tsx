@@ -201,8 +201,20 @@ export function TerminalOutput({
           </div>
         ) : (
           <>
+            <div className="mb-4 rounded-lg border border-[#3c3c3c] bg-[#252526] px-3 py-3">
+              <div className="mb-2 text-[11px] uppercase tracking-[0.12em] text-gray-500">
+                执行命令
+              </div>
+              <div className="overflow-x-auto rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-[13px] text-blue-300">
+                <span className="mr-2 text-gray-500">$</span>
+                <span>{command}</span>
+              </div>
+            </div>
+
             {displayLines.length === 0 ? (
-              <div className="text-gray-500 text-center py-8">暂无输出</div>
+              <div className="text-gray-500 text-center py-8">
+                {status === 'running' ? '命令已启动，正在等待输出...' : '暂无输出'}
+              </div>
             ) : (
               displayLines.map((line, index) => (
                 <div key={index} ref={index === displayLines.length - 1 ? lastLineRef : null}>
